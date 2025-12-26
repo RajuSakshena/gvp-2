@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Tooltip as LeafletTooltip } from "reac
 import { Routes, Route, Link } from "react-router-dom";
 import About from "./About";
 import Partners from "./Partners";
-
+import Impact from "./Impact";
 import {
   PieChart,
   Pie,
@@ -992,7 +992,7 @@ function App() {
       {/* Header Section */}
       <div className="text-center mb-6">
         <h1 className="text-3xl font-bold mb-2 text-gray-800">
-          India Garbage Tracker
+          Bharat Garbage Tracker
         </h1>
         
         {/* Menu Bar - Always Visible */}
@@ -1015,12 +1015,14 @@ function App() {
           >
             Our Partners
           </Link>
+          <Link to="/impact" className="text-gray-600 hover:text-yellow-600 font-semibold transition duration-300">Impact</Link>
         </nav>
       </div>
 
       <Routes>
         <Route path="/about" element={<About />} />
         <Route path="/partners" element={<Partners />} />
+        <Route path="/impact" element={<Impact />} />
         <Route path="/" element={
           <div className="flex flex-col lg:flex-row gap-6 mt-6">
             {/* LEFT COLUMN - Full width on mobile */}
