@@ -1,5 +1,9 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { MapContainer, TileLayer, Marker, Tooltip as LeafletTooltip } from "react-leaflet";
+import { Routes, Route, Link } from "react-router-dom";
+import About from "./About";
+import Partners from "./Partners";
+
 import {
   PieChart,
   Pie,
@@ -562,7 +566,7 @@ const categoryMap = [
       "जवळ पास चे लोक आणि रस्त्यावरून जाणारे लोक",
       "पर्यटक आणि बाजूचे स्टॉल वाले कचरे टाकतात",
       "Tourist",
-      "जवळ पास चे लोक आणि रस्त्यावरून जाणाऱ्या लोक",
+      "जवळ पास चे लोक और रस्त्यावरून जाणाऱ्या लोक",
       "गाडीवरून येणाऱ्या लोक कचरा फेकून जातात",
       "जाण्या येणाऱ्या गाड्या वरून लोक फेकतात",
       "बाहेरून येणाऱ्या लोक कचरा टाकुण जाते",
@@ -996,478 +1000,504 @@ function App() {
 
   return (
     <div className="p-4 sm:p-6 bg-gray-100 min-h-screen font-sans">
-      <h1 className="text-3xl font-bold mb-2 text-gray-800 text-center">
-  India Garbage Tracker
-</h1>
+      {/* Header Section */}
+      <div className="text-center mb-6">
+        <h1 className="text-3xl font-bold mb-2 text-gray-800">
+          India Garbage Tracker
+        </h1>
+        
+        {/* Menu Bar - Always Visible */}
+        <nav className="flex justify-center space-x-8 mt-4 border-b border-gray-200 pb-2">
+          <Link
+            to="/"
+            className="text-gray-600 hover:text-yellow-600 font-semibold transition duration-300"
+          >
+            Home
+          </Link>
+          <Link
+            to="/about"
+            className="text-gray-600 hover:text-yellow-600 font-semibold transition duration-300"
+          >
+            About the Initiative
+          </Link>
+          <Link
+            to="/partners"
+            className="text-gray-600 hover:text-yellow-600 font-semibold transition duration-300"
+          >
+            Our Partners
+          </Link>
+        </nav>
+      </div>
 
+      <Routes>
+        <Route path="/about" element={<About />} />
+        <Route path="/partners" element={<Partners />} />
+        <Route path="/" element={
+          <div className="flex flex-col lg:flex-row gap-6 mt-6">
+            {/* LEFT COLUMN - Full width on mobile */}
+            <div className="w-full lg:w-[460px] space-y-6">
 
-      <div className="flex flex-col lg:flex-row gap-6 mt-6">
-        {/* LEFT COLUMN - Full width on mobile */}
-        <div className="w-full lg:w-[460px] space-y-6">
+              {/* New Position for City Slicer */}
+              <CitySlicer selectedCity={selectedCity} setSelectedCity={setSelectedCity} />
 
-          {/* New Position for City Slicer */}
-          <CitySlicer selectedCity={selectedCity} setSelectedCity={setSelectedCity} />
-
-          {isNagpurSelected ? (
-            <>
-              {/* 1. Summary Cards */}
-              <div className="flex flex-row flex-nowrap gap-4 overflow-x-auto pb-2 ">
-                <div className={`bg-white p-4 rounded-lg shadow-lg text-center border-b-4 border-yellow-500 flex flex-col justify-center ${CARD_SIZE_CLASSES}`}>
-                  <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                    Total Garbage Points
-                  </h2>
-                  <p className="text-5xl font-extrabold mt-1 text-gray-900">
-                    {totalGarbagePoints}
-                  </p>
-                </div>
-
-                <div className={`bg-white p-4 rounded-lg shadow-lg text-center border-b-4 border-green-500 flex flex-col justify-center ${CARD_SIZE_CLASSES}`}>
-                  <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                    GVP Waste Volume (Hath Gadi)
-                  </h2>
-                  <p className="text-5xl font-extrabold mt-1 text-gray-900">
-                    {Math.round(totalHathGadiVolume)}
-                  </p>
-                </div>
-              </div>
-
-              {/* 3. Ward Selector */}
-              <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 relative ">
-                <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">Wards</h2>
-                <div className="relative">
-                  <button
-                    onClick={toggleDropdown}
-                    className="w-full p-2 border rounded-lg shadow-sm bg-white text-left focus:outline-none focus:ring-2 focus:ring-yellow-500 flex justify-between items-center"
-                  >
-                    {selectedWards.length > 0
-                      ? `${selectedWards.length} ward(s) selected`
-                      : "Select Wards"}
-                    <span className="ml-2">▼</span>
-                  </button>
-                  {isDropdownOpen && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                      <label className="flex items-center space-x-2 p-2 hover:bg-gray-100 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedWards.length === uniqueWards.length}
-                          onChange={handleSelectAll}
-                          className="form-checkbox h-4 w-4 text-yellow-500"
-                        />
-                        <span className="text-sm">All</span>
-                      </label>
-                      {uniqueWards.map((ward) => (
-                        <label key={ward} className="flex items-center space-x-2 p-2 hover:bg-gray-100 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            value={ward}
-                            checked={selectedWards.includes(ward)}
-                            onChange={handleWardChange}
-                            className="form-checkbox h-4 w-4 text-yellow-500"
-                          />
-                          <span className="text-sm">{ward}</span>
-                        </label>
-                      ))}
+              {isNagpurSelected ? (
+                <>
+                  {/* 1. Summary Cards */}
+                  <div className="flex flex-row flex-nowrap gap-4 overflow-x-auto pb-2 ">
+                    <div className={`bg-white p-4 rounded-lg shadow-lg text-center border-b-4 border-yellow-500 flex flex-col justify-center ${CARD_SIZE_CLASSES}`}>
+                      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                        Total Garbage Points
+                      </h2>
+                      <p className="text-5xl font-extrabold mt-1 text-gray-900">
+                        {totalGarbagePoints}
+                      </p>
                     </div>
-                  )}
-                </div>
-              </div>
 
-              {/* 4. Table */}
-              <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200">
+                    <div className={`bg-white p-4 rounded-lg shadow-lg text-center border-b-4 border-green-500 flex flex-col justify-center ${CARD_SIZE_CLASSES}`}>
+                      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                        GVP Waste Volume (Hath Gadi)
+                      </h2>
+                      <p className="text-5xl font-extrabold mt-1 text-gray-900">
+                        {Math.round(totalHathGadiVolume)}
+                      </p>
+                    </div>
+                  </div>
 
-                <DataTable
-                  data={selectedRow ? [selectedRow] : filteredDataForCards}
-                  onRowClick={handleRowClick}
-                  selectedRowIndex={selectedRowIndex}
-                />
-              </div>
-
-              {/* 5. Pie Chart */}
-              {/* PIE CHART — Fully Responsive */}
-              <div className="bg-white rounded-lg shadow p-3 w-full">
-                <h3 className="text-center text-sm sm:text-base font-semibold mb-2">
-                  Breakdown by Waste Type
-                </h3>
-
-                {/* Responsive chart wrapper */}
-                <div className="w-full h-72 sm:h-64 md:h-72 lg:h-80">
-
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={pieData}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={isSmallScreen ? 60 : 90}
-                        innerRadius={isSmallScreen ? 30 : 60}
-                        paddingAngle={2}
-                        label={renderCustomizedLabel(isSmallScreen)}
-                        labelLine={!isSmallScreen}
+                  {/* 3. Ward Selector */}
+                  <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 relative ">
+                    <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">Wards</h2>
+                    <div className="relative">
+                      <button
+                        onClick={toggleDropdown}
+                        className="w-full p-2 border rounded-lg shadow-sm bg-white text-left focus:outline-none focus:ring-2 focus:ring-yellow-500 flex justify-between items-center"
                       >
+                        {selectedWards.length > 0
+                          ? `${selectedWards.length} ward(s) selected`
+                          : "Select Wards"}
+                        <span className="ml-2">▼</span>
+                      </button>
+                      {isDropdownOpen && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                          <label className="flex items-center space-x-2 p-2 hover:bg-gray-100 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selectedWards.length === uniqueWards.length}
+                              onChange={handleSelectAll}
+                              className="form-checkbox h-4 w-4 text-yellow-500"
+                            />
+                            <span className="text-sm">All</span>
+                          </label>
+                          {uniqueWards.map((ward) => (
+                            <label key={ward} className="flex items-center space-x-2 p-2 hover:bg-gray-100 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                value={ward}
+                                checked={selectedWards.includes(ward)}
+                                onChange={handleWardChange}
+                                className="form-checkbox h-4 w-4 text-yellow-500"
+                              />
+                              <span className="text-sm">{ward}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-                        {pieData.map((entry, index) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={COLORS[index % COLORS.length]}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+                  {/* 4. Table */}
+                  <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200">
 
-
-              {/* 10. Solutions Chart */}
-              <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 ">
-                <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
-                  Top Solutions Suggested (by Citizens)
-                </h2>
-                <ResponsiveContainer width="100%" height={400}>
-                  <BarChart data={solutionData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                    <YAxis
-                      dataKey="name"
-                      type="category"
-                      width={isSmallScreen ? 120 : 180}
-                      tick={{ fontSize: isSmallScreen ? 11 : 14 }}
+                    <DataTable
+                      data={selectedRow ? [selectedRow] : filteredDataForCards}
+                      onRowClick={handleRowClick}
+                      selectedRowIndex={selectedRowIndex}
                     />
+                  </div>
 
-                    <Tooltip formatter={(value) => `${value.toFixed(1)}%`} />
-                    <Bar dataKey="value" barSize={isSmallScreen ? 14 : 22}
-                      label={renderCustomBarLabel}>
-                      {solutionData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </>
-          ) : (
-            <div className="mt-6 p-10 bg-white rounded-xl shadow-2xl text-center border-4 border-yellow-400">
-              <p className="text-4xl font-extrabold text-gray-800">
-                Coming Soon!
-              </p>
-              <p className="mt-4 text-xl text-gray-600">
-                Data and visualization for **{selectedCity}** will be available in a future update.
-              </p>
-              <button
-                onClick={() => setSelectedCity("Nagpur")}
-                className="mt-8 px-6 py-3 bg-yellow-500 text-white font-semibold text-lg rounded-lg shadow-md hover:bg-yellow-600 transition duration-300"
-              >
-                Go back to Nagpur Dashboard
-              </button>
-            </div>
-          )}
-        </div>
+                  {/* 5. Pie Chart */}
+                  <div className="bg-white rounded-lg shadow p-3 w-full">
+                    <h3 className="text-center text-sm sm:text-base font-semibold mb-2">
+                      Breakdown by Waste Type
+                    </h3>
 
-        {/* RIGHT COLUMN - Map + Key Findings */}
-        <div className="flex-1 lg:space-y-6">
+                    <div className="w-full h-72 sm:h-64 md:h-72 lg:h-80">
 
-          {isNagpurSelected ? (
-            <>
-              {/* 2. Map */}
-              <div className="h-[700px] lg:h-[850px]">
-
-                <MapContainer
-                  whenCreated={setMapInstance}
-                  center={mapCenter}
-                  zoom={13}
-                  className="w-full h-full rounded-lg shadow-lg border border-gray-200"
-                >
-                  <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
-                  {(selectedRow ? [selectedRow] : filteredDataForCards)
-                    .filter((row) => row["GVP Latitude"] && row["GVP Longitude"])
-                    .map((row, idx) => {
-                      const lat = Number(row["GVP Latitude"]);
-                      const lng = Number(row["GVP Longitude"]);
-                      const ward = row["GVP Ward"] || "";
-                      const stableKey = `${ward}-${lat}-${lng}-${idx}`;
-
-                      const colorName = WARD_COLOR_MAP[ward] || "blue";
-
-                      const customIcon = new L.Icon({
-                        iconRetinaUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${colorName}.png`,
-                        iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${colorName}.png`,
-                        shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
-                        iconSize: [25, 41],
-                        iconAnchor: [12, 41],
-                        popupAnchor: [1, -34],
-                        shadowSize: [41, 41],
-                      });
-
-                      return (
-                        <Marker
-                          key={stableKey}
-                          position={[lat, lng]}
-                          icon={customIcon}
-                          eventHandlers={{
-                            click: () => handleMarkerClick(row),
-                          }}
-                        >
-                          <LeafletTooltip
-                            direction="auto"
-                            offset={[0, -20]}
-                            opacity={1}
-                            sticky={true}
-                            permanent={false}
-                            interactive={true}
-                            className="rounded shadow-lg p-0 custom-tooltip"
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={pieData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={isSmallScreen ? 60 : 90}
+                            innerRadius={isSmallScreen ? 30 : 60}
+                            paddingAngle={2}
+                            label={renderCustomizedLabel(isSmallScreen)}
+                            labelLine={!isSmallScreen}
                           >
-                            <div
-                              style={{
-                                maxWidth: 700,
-                                minWidth: 400,
-                                minHeight: 400,
-                                overflow: "visible",
-                                whiteSpace: "pre-wrap",
-                                fontSize: 12,
-                                lineHeight: 1.0,
-                                padding: 12,
-                                background: "white",
-                                borderRadius: 10,
-                                boxShadow: "0 8px 22px rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.08)",
+
+                            {pieData.map((entry, index) => (
+                              <Cell
+                                key={`cell-${index}`}
+                                fill={COLORS[index % COLORS.length]}
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+
+                  {/* 10. Solutions Chart */}
+                  <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 ">
+                    <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
+                      Top Solutions Suggested (by Citizens)
+                    </h2>
+                    <ResponsiveContainer width="100%" height={400}>
+                      <BarChart data={solutionData} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+                        <YAxis
+                          dataKey="name"
+                          type="category"
+                          width={isSmallScreen ? 120 : 180}
+                          tick={{ fontSize: isSmallScreen ? 11 : 14 }}
+                        />
+
+                        <Tooltip formatter={(value) => `${value.toFixed(1)}%`} />
+                        <Bar dataKey="value" barSize={isSmallScreen ? 14 : 22}
+                          label={renderCustomBarLabel}>
+                          {solutionData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </>
+              ) : (
+                <div className="mt-6 p-10 bg-white rounded-xl shadow-2xl text-center border-4 border-yellow-400">
+                  <p className="text-4xl font-extrabold text-gray-800">
+                    Coming Soon!
+                  </p>
+                  <p className="mt-4 text-xl text-gray-600">
+                    Data and visualization for **{selectedCity}** will be available in a future update.
+                  </p>
+                  <button
+                    onClick={() => setSelectedCity("Nagpur")}
+                    className="mt-8 px-6 py-3 bg-yellow-500 text-white font-semibold text-lg rounded-lg shadow-md hover:bg-yellow-600 transition duration-300"
+                  >
+                    Go back to Nagpur Dashboard
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* RIGHT COLUMN - Map + Key Findings */}
+            <div className="flex-1 lg:space-y-6">
+
+              {isNagpurSelected ? (
+                <>
+                  {/* 2. Map */}
+                  <div className="h-[700px] lg:h-[850px]">
+
+                    <MapContainer
+                      whenCreated={setMapInstance}
+                      center={mapCenter}
+                      zoom={13}
+                      className="w-full h-full rounded-lg shadow-lg border border-gray-200"
+                    >
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
+                      {(selectedRow ? [selectedRow] : filteredDataForCards)
+                        .filter((row) => row["GVP Latitude"] && row["GVP Longitude"])
+                        .map((row, idx) => {
+                          const lat = Number(row["GVP Latitude"]);
+                          const lng = Number(row["GVP Longitude"]);
+                          const ward = row["GVP Ward"] || "";
+                          const stableKey = `${ward}-${lat}-${lng}-${idx}`;
+
+                          const colorName = WARD_COLOR_MAP[ward] || "blue";
+
+                          const customIcon = new L.Icon({
+                            iconRetinaUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${colorName}.png`,
+                            iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${colorName}.png`,
+                            shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41],
+                            popupAnchor: [1, -34],
+                            shadowSize: [41, 41],
+                          });
+
+                          return (
+                            <Marker
+                              key={stableKey}
+                              position={[lat, lng]}
+                              icon={customIcon}
+                              eventHandlers={{
+                                click: () => handleMarkerClick(row),
                               }}
                             >
-                              <div style={{ marginBottom: 8, fontWeight: 700 }}>
-                                Garbage Point Info
-                              </div>
-                              <div style={{ marginBottom: 8 }}>
-                                {getGarbagePointInfo(row)}
-                              </div>
-                            </div>
-                          </LeafletTooltip>
-                        </Marker>
-                      );
-                    })}
-                </MapContainer>
-              </div>
-
-              <h2 className="text-2xl font-bold mt-8 text-center text-black ">
-                Key Findings from the GVP Survey
-              </h2>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-
-                <div className="space-y-6">
-                  {/* 6. Problems */}
-                  <div className="bg-white px-6 py-5 rounded-lg shadow-lg border border-gray-200 overflow-x-auto">
-
-                    <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
-                      Top Problems Faced by Residents around GVP
-                    </h2>
-                    <ResponsiveContainer width="100%" minWidth={360} height={isSmallScreen ? 210 : 250}>
-
-                      <BarChart data={problemsData} layout="vertical"
-                        margin={{
-                          top: 10,
-                          right: isSmallScreen ? 50 : 90,
-                          left: 10,
-                          bottom: 10,
-                        }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis
-                          type="number"
-                          domain={[0, 100]}
-                          tickFormatter={(v) => `${v}%`}
-                        />
-                        <YAxis
-                          dataKey="name"
-                          type="category"
-                          width={isSmallScreen ? 70 : 130}
-                          tick={{ fontSize: isSmallScreen ? 9 : 12 }}
-                          tickFormatter={(value) =>
-                            value.length > 18 ? value.slice(0, 18) + "…" : value
-                          }
-                        />
-
-
-                        <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
-                        <Bar
-                          dataKey="value"
-                          barSize={isSmallScreen ? 14 : 22}
-                          label={renderCustomBarLabel}
-                        >
-                          {problemsData.map((_, i) => (
-                            <Cell
-                              key={i}
-                              fill={BAR_COLORS[i % BAR_COLORS.length]}
-                            />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-
+                              <LeafletTooltip
+                                direction="auto"
+                                offset={[0, -20]}
+                                opacity={1}
+                                sticky={true}
+                                permanent={false}
+                                interactive={true}
+                                className="rounded shadow-lg p-0 custom-tooltip"
+                              >
+                                <div
+                                  style={{
+                                    maxWidth: 700,
+                                    minWidth: 400,
+                                    minHeight: 400,
+                                    overflow: "visible",
+                                    whiteSpace: "pre-wrap",
+                                    fontSize: 12,
+                                    lineHeight: 1.0,
+                                    padding: 12,
+                                    background: "white",
+                                    borderRadius: 10,
+                                    boxShadow: "0 8px 22px rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.08)",
+                                  }}
+                                >
+                                  <div style={{ marginBottom: 8, fontWeight: 700 }}>
+                                    Garbage Point Info
+                                  </div>
+                                  <div style={{ marginBottom: 8 }}>
+                                    {getGarbagePointInfo(row)}
+                                  </div>
+                                </div>
+                              </LeafletTooltip>
+                            </Marker>
+                          );
+                        })}
+                    </MapContainer>
                   </div>
 
-                  {/* 8. Settings */}
-                  <div className="bg-white px-6 py-5 rounded-lg shadow-lg border border-gray-200 overflow-x-auto">
+                  <h2 className="text-2xl font-bold mt-8 text-center text-black ">
+                    Key Findings from the GVP Survey
+                  </h2>
 
-                    <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
-                      Top Settings Where GVPs Are Found
-                    </h2>
-                    <ResponsiveContainer width="100%" minWidth={320} height={isSmallScreen ? 360 : 390}>
-                      <BarChart data={settingData}
-                        layout="vertical"
-                        margin={{
-                          top: 10,
-                          right: isSmallScreen ? 50 : 90,
-                          left: 10,
-                          bottom: 10,
-                        }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis
-                          type="number"
-                          domain={[0, 100]}
-                          tickFormatter={(v) => `${v}%`}
-                        />
-                        <YAxis
-                          dataKey="name"
-                          type="category"
-                          width={isSmallScreen ? 90 : 160}
-                          tick={{ fontSize: isSmallScreen ? 10 : 14 }}
-                        />
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
 
-                        <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
-                        <Bar
-                          dataKey="value"
-                          barSize={isSmallScreen ? 14 : 22}
-                          label={renderCustomBarLabel}
-                        >
-                          {settingData.map((_, i) => (
-                            <Cell
-                              key={i}
-                              fill={BAR_COLORS[i % BAR_COLORS.length]}
+                    <div className="space-y-6">
+                      {/* 6. Problems */}
+                      <div className="bg-white px-6 py-5 rounded-lg shadow-lg border border-gray-200 overflow-x-auto">
+
+                        <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
+                          Top Problems Faced by Residents around GVP
+                        </h2>
+                        <ResponsiveContainer width="100%" minWidth={360} height={isSmallScreen ? 250 : 290}>
+
+                          <BarChart data={problemsData} layout="vertical"
+                            margin={{
+                              top: 10,
+                              right: isSmallScreen ? 50 : 90,
+                              left: 10,
+                              bottom: 10,
+                            }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis
+                              type="number"
+                              domain={[0, 100]}
+                              tickFormatter={(v) => `${v}%`}
                             />
-                          ))}
-                        </Bar>
+                            <YAxis
+                              dataKey="name"
+                              type="category"
+                              width={isSmallScreen ? 70 : 130}
+                              tick={{ fontSize: isSmallScreen ? 9 : 12 }}
+                              tickFormatter={(value) =>
+                                value.length > 18 ? value.slice(0, 18) + "…" : value
+                              }
+                            />
 
-                      </BarChart>
-                    </ResponsiveContainer>
 
+                            <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
+                            <Bar
+                              dataKey="value"
+                              barSize={isSmallScreen ? 14 : 22}
+                              label={renderCustomBarLabel}
+                            >
+                              {problemsData.map((_, i) => (
+                                <Cell
+                                  key={i}
+                                  fill={BAR_COLORS[i % BAR_COLORS.length]}
+                                />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+
+                      </div>
+
+                      {/* 8. Settings */}
+                      <div className="bg-white px-6 py-5 rounded-lg shadow-lg border border-gray-200 overflow-x-auto">
+
+                        <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
+                          Top Settings Where GVPs Are Found
+                        </h2>
+                        <ResponsiveContainer width="100%" minWidth={320} height={isSmallScreen ? 360 : 390}>
+                          <BarChart data={settingData}
+                            layout="vertical"
+                            margin={{
+                              top: 10,
+                              right: isSmallScreen ? 50 : 90,
+                              left: 10,
+                              bottom: 10,
+                            }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis
+                              type="number"
+                              domain={[0, 100]}
+                              tickFormatter={(v) => `${v}%`}
+                            />
+                            <YAxis
+                              dataKey="name"
+                              type="category"
+                              width={isSmallScreen ? 90 : 160}
+                              tick={{ fontSize: isSmallScreen ? 10 : 14 }}
+                            />
+
+                            <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
+                            <Bar
+                              dataKey="value"
+                              barSize={isSmallScreen ? 14 : 22}
+                              label={renderCustomBarLabel}
+                            >
+                              {settingData.map((_, i) => (
+                                <Cell
+                                  key={i}
+                                  fill={BAR_COLORS[i % BAR_COLORS.length]}
+                                />
+                              ))}
+                            </Bar>
+
+                          </BarChart>
+                        </ResponsiveContainer>
+
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      {/* 7. Who Dispose */}
+                      <div className="bg-white px-6 py-5 rounded-lg shadow-lg border border-gray-200 overflow-x-auto">
+
+                        <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
+                          Who is Disposing the most Waste (as per Citizens)
+                        </h2>
+                        <ResponsiveContainer width="100%" minWidth={360} height={isSmallScreen ? 250 : 290}>
+                          <BarChart data={whoDisposeData}
+                            layout="vertical"
+                            margin={{
+                              top: 10,
+                              right: isSmallScreen ? 50 : 90,
+                              left: 10,
+                              bottom: 10,
+                            }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis
+                              type="number"
+                              domain={[0, 100]}
+                              tickFormatter={(v) => `${v}%`}
+                            />
+                            <YAxis
+                              dataKey="name"
+                              type="category"
+                              width={isSmallScreen ? 90 : 160}
+                              tick={{ fontSize: isSmallScreen ? 10 : 14 }}
+                            />
+
+                            <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
+                            <Bar
+                              dataKey="value"
+                              barSize={isSmallScreen ? 14 : 22}
+                              label={renderCustomBarLabel}
+                            >
+                              {whoDisposeData.map((_, i) => (
+                                <Cell
+                                  key={i}
+                                  fill={BAR_COLORS[i % BAR_COLORS.length]}
+                                />
+                              ))}
+                            </Bar>
+
+                          </BarChart>
+                        </ResponsiveContainer>
+
+                      </div>
+
+                      {/* 9. Reasons */}
+                      <div className="bg-white px-6 py-5 rounded-lg shadow-lg border border-gray-200 overflow-x-auto">
+
+                        <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
+                          Reasons for Waste Accumulation
+                        </h2>
+                        <ResponsiveContainer width="100%" minWidth={320} height={isSmallScreen ? 360 : 390}>
+                          <BarChart
+                            data={reasonsData}
+                            layout="vertical"
+                            margin={{
+                              top: 10,
+                              right: isSmallScreen ? 50 : 90,
+
+                              left: 10,
+                              bottom: 10,
+                            }}
+                          >
+
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis
+                              type="number"
+                              domain={[0, 100]}
+                              tickFormatter={(v) => `${v}%`}
+                            />
+                            <YAxis
+                              dataKey="name"
+                              type="category"
+                              width={isSmallScreen ? 90 : 160}
+                              tick={{ fontSize: isSmallScreen ? 10 : 14 }}
+                            />
+
+                            <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
+                            <Bar
+                              dataKey="value"
+                              barSize={isSmallScreen ? 14 : 22}
+                              label={renderCustomBarLabel}
+                            >
+                              {reasonsData.map((_, i) => (
+                                <Cell
+                                  key={i}
+                                  fill={BAR_COLORS[i % BAR_COLORS.length]}
+                                />
+                              ))}
+                            </Bar>
+
+                          </BarChart>
+                        </ResponsiveContainer>
+
+                      </div>
+                    </div>
                   </div>
+                </>
+              ) : (
+                <div className="hidden lg:block w-full h-full">
                 </div>
-
-                <div className="space-y-6">
-                  {/* 7. Who Dispose - FIXED */}
-                  <div className="bg-white px-6 py-5 rounded-lg shadow-lg border border-gray-200 overflow-x-auto">
-
-                    <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
-                      Who is Disposing the most Waste (as per Citizens)
-                    </h2>
-                    <ResponsiveContainer width="100%" minWidth={360} height={isSmallScreen ? 210 : 250}>
-                      <BarChart data={whoDisposeData}
-                        layout="vertical"
-                        margin={{
-                          top: 10,
-                          right: isSmallScreen ? 50 : 90,
-                          left: 10,
-                          bottom: 10,
-                        }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis
-                          type="number"
-                          domain={[0, 100]}
-                          tickFormatter={(v) => `${v}%`}
-                        />
-                        <YAxis
-                          dataKey="name"
-                          type="category"
-                          width={isSmallScreen ? 90 : 160}
-                          tick={{ fontSize: isSmallScreen ? 10 : 14 }}
-                        />
-
-                        <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
-                        <Bar
-                          dataKey="value"
-                          barSize={isSmallScreen ? 14 : 22}
-                          label={renderCustomBarLabel}
-                        >
-                          {whoDisposeData.map((_, i) => (
-                            <Cell
-                              key={i}
-                              fill={BAR_COLORS[i % BAR_COLORS.length]}
-                            />
-                          ))}
-                        </Bar>
-
-                      </BarChart>
-                    </ResponsiveContainer>
-
-                  </div>
-
-                  {/* 9. Reasons */}
-                  <div className="bg-white px-6 py-5 rounded-lg shadow-lg border border-gray-200 overflow-x-auto">
-
-                    <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
-                      Reasons for Waste Accumulation
-                    </h2>
-                    <ResponsiveContainer width="100%" minWidth={320} height={isSmallScreen ? 360 : 390}>
-                      <BarChart
-                        data={reasonsData}
-                        layout="vertical"
-                        margin={{
-                          top: 10,
-                          right: isSmallScreen ? 50 : 90,
-
-                          left: 10,
-                          bottom: 10,
-                        }}
-                      >
-
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis
-                          type="number"
-                          domain={[0, 100]}
-                          tickFormatter={(v) => `${v}%`}
-                        />
-                        <YAxis
-                          dataKey="name"
-                          type="category"
-                          width={isSmallScreen ? 90 : 160}
-                          tick={{ fontSize: isSmallScreen ? 10 : 14 }}
-                        />
-
-                        <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
-                        <Bar
-                          dataKey="value"
-                          barSize={isSmallScreen ? 14 : 22}
-                          label={renderCustomBarLabel}
-                        >
-                          {reasonsData.map((_, i) => (
-                            <Cell
-                              key={i}
-                              fill={BAR_COLORS[i % BAR_COLORS.length]}
-                            />
-                          ))}
-                        </Bar>
-
-                      </BarChart>
-                    </ResponsiveContainer>
-
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : (
-            // Render the Coming Soon message only in the right column if not Nagpur
-            <div className="hidden lg:block w-full h-full">
-              {/* This is empty on purpose, the coming soon message is handled in the left column */}
+              )}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        } />
+      </Routes>
     </div>
   );
 }

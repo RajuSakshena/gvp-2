@@ -1,14 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import './index.css';
+import './index.css'; // Tailwind directives are inside this file
 import App from './App';
-import { BrowserRouter } from 'react-router-dom'; // Added this import
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <BrowserRouter> {/* Wrap App in BrowserRouter */}
-      <App />
-    </BrowserRouter>
+    <App />
   </React.StrictMode>
 );
