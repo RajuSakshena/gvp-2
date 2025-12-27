@@ -6,36 +6,23 @@ import React, { useState, useEffect } from "react";
 
 // additional
 import additional1 from "./our-partner/additional1.jpeg";
-import additional2 from "./our-partner/additional2.jpeg";
+
 import additional3 from "./our-partner/additional3.jpeg";
 import additional4 from "./our-partner/additional4.jpeg";
 import additional5 from "./our-partner/additional5.jpeg";
 import additional6 from "./our-partner/additional6.jpeg";
 
 // awards
-import award1 from "./our-partner/award1.jpeg";
-import award2 from "./our-partner/award2.jpeg";
+
 import award3 from "./our-partner/award3.jpeg";
 
 // clean
-import clean1 from "./our-partner/clean1.jpeg";
+
 import clean2 from "./our-partner/clean2.jpeg";
-import clean3 from "./our-partner/clean3.jpeg";
-import clean4 from "./our-partner/clean4.jpeg";
+
 import clean5 from "./our-partner/clean5.jpeg";
 import clean6 from "./our-partner/clean6.jpeg";
-import clean7 from "./our-partner/clean7.jpeg";
-import clean8 from "./our-partner/clean8.jpeg";
-import clean9 from "./our-partner/clean9.jpeg";
-import clean10 from "./our-partner/clean10.jpeg";
-import clean11 from "./our-partner/clean11.jpeg";
-import clean12 from "./our-partner/clean12.jpeg";
 
-// garbage
-import garbage1 from "./our-partner/garbage1.jpeg";
-import garbage2 from "./our-partner/garbage2.jpeg";
-import garbage3 from "./our-partner/garbage3.jpeg";
-import garbage4 from "./our-partner/garbage4.jpeg";
 
 // news
 import news1 from "./our-partner/news1.jpeg";
@@ -55,34 +42,31 @@ import office3 from "./our-partner/office3.jpeg";
 import office4 from "./our-partner/office4.jpeg";
 import office5 from "./our-partner/office5.jpeg";
 import office6 from "./our-partner/office6.jpeg";
-import office7 from "./our-partner/office7.jpeg";
-import office8 from "./our-partner/office8.jpeg";
+
 import office9 from "./our-partner/office9.jpeg";
 import office10 from "./our-partner/office10.jpeg";
 import office11 from "./our-partner/office11.jpeg";
 import office12 from "./our-partner/office12.jpeg";
-import office13 from "./our-partner/office13.jpeg";
-import office14 from "./our-partner/office14.jpeg";
+
 import office15 from "./our-partner/office15.jpeg";
 import office16 from "./our-partner/office16.jpeg";
 
 // public
-import public1 from "./our-partner/public1.jpeg";
-import public2 from "./our-partner/public2.jpeg";
+
 
 /* =======================
    SLIDER DATA
    ======================= */
 
 const galleryImages = [
-  additional1, additional2, additional3, additional4, additional5, additional6,
-  award1, award2, award3,
-  clean1, clean2, clean3, clean4, clean5, clean6, clean7, clean8, clean9, clean10, clean11, clean12,
-  garbage1, garbage2, garbage3, garbage4,
+  additional1, additional3, additional4, additional5, additional6,
+   award3,
+   clean2,  clean5, clean6,  
+   
   news1, news2, news3, news4, news5, news6, news7, news8, news9,
-  office1, office2, office3, office4, office5, office6, office7, office8, office9, office10,
-  office11, office12, office13, office14, office15, office16,
-  public1, public2
+  office1, office2, office3, office4, office5, office6,  office9, office10,
+  office11, office12,  office15, office16,
+  
 ];
 
 const Impact = () => {
@@ -114,7 +98,7 @@ const Impact = () => {
     <div className="max-w-6xl mx-auto px-6 py-10">
       <h1 className="text-4xl font-bold mb-2 text-blue-600">Our Impact</h1>
       <p className="text-gray-600 mb-10 text-lg">
-        Visualizing progress through real field activity and waste collection.
+        Moments from our jouney, where thought capital, ground-level insights, and key reflections from data are helping reduce Garbage Vulnerable Points.
       </p>
 
       {/* SLIDER */}
@@ -154,7 +138,7 @@ const Impact = () => {
                 Field Activity
               </span>
               <h2 className="text-2xl md:text-3xl font-bold">
-                Waste Management Ground Operations
+                Key moments from Nagpur: GVP Survey, Analysis, Dashboard Creation, & Government Collaboration. 
               </h2>
             </div>
           </div>
@@ -178,17 +162,17 @@ const Impact = () => {
       {/* STATS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
         <div className="p-6 bg-white rounded-xl shadow border">
-          <h3 className="text-4xl font-extrabold text-blue-600 mb-2">40%</h3>
+          <h3 className="text-4xl font-extrabold text-blue-600 mb-2">10%</h3>
           <p className="text-gray-600">Reduction in illegal dumping</p>
         </div>
 
         <div className="p-6 bg-white rounded-xl shadow border">
-          <h3 className="text-4xl font-extrabold text-blue-600 mb-2">500+</h3>
+          <h3 className="text-4xl font-extrabold text-blue-600 mb-2">113</h3>
           <p className="text-gray-600">GVPs monitored monthly</p>
         </div>
 
         <div className="p-6 bg-white rounded-xl shadow border">
-          <h3 className="text-4xl font-extrabold text-blue-600 mb-2">12</h3>
+          <h3 className="text-4xl font-extrabold text-blue-600 mb-2">04</h3>
           <p className="text-gray-600">Active wards covered</p>
         </div>
       </div>
