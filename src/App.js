@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { MapContainer, TileLayer, Marker, Tooltip as LeafletTooltip } from "react-leaflet";
 import { Routes, Route, Link } from "react-router-dom";
+import "react-image-gallery/styles/css/image-gallery.css";
 import About from "./About";
 import Partners from "./Partners";
 import Impact from "./Impact";
