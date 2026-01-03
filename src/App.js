@@ -1453,7 +1453,20 @@ function App() {
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
+                      
                     </div>
+                    {/* Footer */}
+<footer className="mt-12 pb-4 text-center">
+  <a
+    href="https://themetropolitaninstitute.com/"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="text-xl font-bold text-gray-600 hover:text-blue-400 transition duration-300"
+  >
+    Developed by The Metropolitan Institute
+  </a>
+</footer>
+
                   </div>
                 </>
               ) : (
@@ -1465,6 +1478,7 @@ function App() {
         } />
       </Routes>
     </div>
+    
   );
 }
 
