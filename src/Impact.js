@@ -96,7 +96,7 @@ const Impact = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-10">
-      <h1 className="text-4xl font-bold mb-2 text-blue-600">Our Impact</h1>
+      <h1 className="text-4xl font-bold mb-2 text-gray-600">Our Impact</h1>
       <p className="text-gray-600 mb-10 text-lg">
         Moments from our jouney, where thought capital, ground-level insights, and key reflections from data are helping reduce Garbage Vulnerable Points.
       </p>
@@ -168,7 +168,7 @@ const Impact = () => {
 
         <div className="p-6 bg-white rounded-xl shadow border">
           <h3 className="text-4xl font-extrabold text-blue-600 mb-2">113</h3>
-          <p className="text-gray-600">GVPs monitored monthly</p>
+          <p className="text-gray-600">Total GVPs monitored </p>
         </div>
 
         <div className="p-6 bg-white rounded-xl shadow border">
