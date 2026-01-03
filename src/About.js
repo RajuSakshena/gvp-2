@@ -3,7 +3,7 @@ import React from "react";
 const About = () => {
   return (
     <div className="max-w-6xl mx-auto px-6 py-12">
-      <h1 className="text-4xl font-bold mb-6 text-gray-900">
+      <h1 className="text-4xl font-bold mb-6 text-gray-600">
         About the Bharat Garbage Dashboard
       </h1>
 
