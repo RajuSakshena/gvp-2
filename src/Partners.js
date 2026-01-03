@@ -12,7 +12,7 @@ const partners = [
     name: "The Metropolitan Institute (TMI)",
     logo: TMI,
     description:
-      "The Metropolitan Institute (TMI) is an urban research and implementation organization working on data-driven governance, solid waste management, and civic technology. TMI collaborates with governments and institutions to build scalable urban solutions.",
+      "The Metropolitan Institute (TMI) is a social impact think-and-do-tank that works at the confluence of government, civil society, and the market. TMI works on capacity building with government and non-profits, drives philanthropy and giving programs, builds and co-creates tech for good, and enables catalytic social impact environments spanning across gender, climate, education, waste management, safety, local governance, and technology for social impact.",
   },
   {
     name: "Centre for Social Development (CFSD)",
@@ -44,7 +44,7 @@ const Partner = () => {
   return (
     <section className="bg-gray-50 py-14 px-6">
       <div className="max-w-7xl mx-auto">
-        <h2 className="text-3xl font-bold text-blue-600 mb-10 uppercase">
+        <h2 className="text-3xl font-bold text-gray-600 mb-10 ">
           Our Partners
         </h2>
 
