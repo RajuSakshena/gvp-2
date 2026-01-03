@@ -1,18 +1,18 @@
 import React from "react";
 
 // images are in src/our-partner
-import TMI from "./our-partner/TMI.png";
-import CFSD from "./our-partner/cfsd.jpeg";
-import NMC from "./our-partner/Nagpur_Municipal_Corporation_logo.png";
 import AIILSG from "./our-partner/AIILSG.jpeg";
+import CFSD from "./our-partner/cfsd.jpeg";
 import GlobalShapers from "./our-partner/Global-Shapers-Nagpur.jpeg";
+import NMC from "./our-partner/Nagpur_Municipal_Corporation_logo.png";
+import TMI from "./our-partner/TMI.png";
 
 const partners = [
   {
-    name: "The Metropolitan Institute (TMI)",
-    logo: TMI,
+    name: "All India Institute of Local Self Government (AIILSG)",
+    logo: AIILSG,
     description:
-      "The Metropolitan Institute (TMI) is a social impact think-and-do-tank that works at the confluence of government, civil society, and the market. TMI works on capacity building with government and non-profits, drives philanthropy and giving programs, builds and co-creates tech for good, and enables catalytic social impact environments spanning across gender, climate, education, waste management, safety, local governance, and technology for social impact.",
+      "AIILSG is a national institution focused on strengthening municipal governance through training, research, and capacity building for urban local bodies.",
   },
   {
     name: "Centre for Social Development (CFSD)",
@@ -21,22 +21,22 @@ const partners = [
       "Centre for Social Development (CFSD) works towards inclusive urban and social development through research, capacity building, and community-based initiatives.",
   },
   {
+    name: "Global Shapers Community – Nagpur",
+    logo: GlobalShapers,
+    description:
+      "Global Shapers Community – Nagpur, an initiative of the World Economic Forum, drives youth-led social impact projects in sustainability, civic engagement, and inclusive growth.",
+  },
+  {
     name: "Nagpur Municipal Corporation (NMC)",
     logo: NMC,
     description:
       "Nagpur Municipal Corporation (NMC) is responsible for urban governance and service delivery in Nagpur, partnering on sanitation, waste management, and digital governance initiatives.",
   },
   {
-    name: "All India Institute of Local Self Government (AIILSG)",
-    logo: AIILSG,
+    name: "The Metropolitan Institute (TMI)",
+    logo: TMI,
     description:
-      "AIILSG is a national institution focused on strengthening municipal governance through training, research, and capacity building for urban local bodies.",
-  },
-  {
-    name: "Global Shapers Community – Nagpur",
-    logo: GlobalShapers,
-    description:
-      "Global Shapers Community – Nagpur, an initiative of the World Economic Forum, drives youth-led social impact projects in sustainability, civic engagement, and inclusive growth.",
+      "The Metropolitan Institute (TMI) is a social impact think-and-do-tank that works at the confluence of government, civil society, and the market. TMI works on capacity building with government and non-profits, drives philanthropy and giving programs, builds and co-creates tech for good, and enables catalytic social impact environments spanning across gender, climate, education, waste management, safety, local governance, and technology for social impact.",
   },
 ];
 
@@ -44,7 +44,7 @@ const Partner = () => {
   return (
     <section className="bg-gray-50 py-14 px-6">
       <div className="max-w-7xl mx-auto">
-        <h2 className="text-3xl font-bold text-gray-600 mb-10 ">
+        <h2 className="text-3xl font-bold text-gray-600 mb-10">
           Our Partners
         </h2>
 
