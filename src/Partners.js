@@ -2,10 +2,12 @@ import React from "react";
 
 // images are in src/our-partner
 import AIILSG from "./our-partner/AIILSG.jpeg";
+import AnvitiFoundation from "./our-partner/Anviti Foundation.png";
 import CFSD from "./our-partner/cfsd.jpeg";
 import GlobalShapers from "./our-partner/Global-Shapers-Nagpur.jpeg";
 import NMC from "./our-partner/Nagpur_Municipal_Corporation_logo.png";
 import TMI from "./our-partner/TMI.png";
+import YuvaRuralAssociation from "./our-partner/YuvaRuralAssociation.png";
 
 const partners = [
   {
@@ -13,6 +15,12 @@ const partners = [
     logo: AIILSG,
     description:
       "AIILSG is a national institution focused on strengthening municipal governance through training, research, and capacity building for urban local bodies.",
+  },
+  {
+    name: "Anviti Foundation",
+    logo: AnvitiFoundation,
+    description:
+      "Anviti Foundation is a non-governmental organization (NGO) based in Nagpur, Maharashtra, primarily focused on environmental conservation and social welfare initiatives, with a strong emphasis on waste management across various parts of Nagpur.",
   },
   {
     name: "Centre for Social Development (CFSD)",
@@ -37,6 +45,12 @@ const partners = [
     logo: TMI,
     description:
       "The Metropolitan Institute (TMI) is a social impact think-and-do-tank that works at the confluence of government, civil society, and the market. TMI works on capacity building with government and non-profits, drives philanthropy and giving programs, builds and co-creates tech for good, and enables catalytic social impact environments spanning across gender, climate, education, waste management, safety, local governance, and technology for social impact.",
+  },
+  {
+    name: "Yuva Rural Association",
+    logo: YuvaRuralAssociation,
+    description:
+      "Yuva Rural Association undertakes a wide range of activities starting from creating livelihood opportunities for the poor, protecting vulnerable people from violence and social discrimination, to making the government schemes available to the people through policy advocacy and lobbying.",
   },
 ];
 
