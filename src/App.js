@@ -1443,6 +1443,14 @@ function App() {
             Our Partners
           </Link>
           <Link to="/impact" className="text-gray-600 hover:text-yellow-600 font-semibold transition duration-300">Impact</Link>
+          <a
+            href="https://ee.kobotoolbox.org/x/JoXcMcRe"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-600 hover:text-yellow-600 font-semibold transition duration-300"
+          >
+            + Enter Data
+          </a>
         </nav>
       </div>
 
