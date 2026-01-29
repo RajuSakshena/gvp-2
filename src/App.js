@@ -22,6 +22,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useMediaQuery } from "react-responsive";
 
+import staticDataRaw from "./data_cleaned.json";
+
 L.Icon.Default.mergeOptions({
   iconRetinaUrl:
     "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
@@ -99,187 +101,188 @@ const renderCustomizedLabel = (isSmallScreen) => (props) => {
   const y = cy + labelRadius * Math.sin(-midAngle * RADIAN);
 
   const percentage = (percent * 100).toFixed(1);
-  const words = name.split(" ");
 
-  return (
-    <text
-      x={x}
-      y={y}
-      fill="#000"
-      textAnchor={x > cx ? "start" : "end"}
-      dominantBaseline="central"
-      fontSize={isSmallScreen ? 9 : 14}
-    >
-      <tspan x={x} dy="-0.6em">{words[0]}</tspan>
-      <tspan x={x} dy="1.1em">{words.slice(1).join(" ")}</tspan>
-      <tspan x={x} dy="1.1em" fill="#555">{percentage}%</tspan>
-    </text>
-  );
+  if (name.includes(" & ")) {
+    const [prefix, suffix] = name.split(" & ");
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="#000"
+        textAnchor={x > cx ? "start" : "end"}
+        dominantBaseline="central"
+        fontSize={isSmallScreen ? 9 : 14}
+      >
+        <tspan x={x} dy="-0.6em">{prefix} &</tspan>
+        <tspan x={x} dy="1.2em">{suffix} {percentage}%</tspan>
+      </text>
+    );
+  } else {
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="#000"
+        textAnchor={x > cx ? "start" : "end"}
+        dominantBaseline="central"
+        fontSize={isSmallScreen ? 9 : 14}
+      >
+        {`${name} ${percentage}%`}
+      </text>
+    );
+  }
 };
 
-// Tooltip Function (Full Measure)
-const getGarbagePointInfo = (row) => {
-  const LB = "\n";
-
-  const Ward = row["GVP Ward"] ? `Ward: ${row["GVP Ward"]}${LB}` : "";
-  const NearestLocationRaw = row["Nearest Location"];
-  const NearestLocation = NearestLocationRaw
-    ? `Nearest Location: ${NearestLocationRaw.replace(/\r|\n/g, " ").trim()}${LB}`
-    : "";
-
-  const Comments = row["Comments On GVP"]
-    ? `Comments: ${row["Comments On GVP"]}${LB}`
-    : "";
-
-  const wasteTypesMap = {
-    "Organic and Wet Waste": "• Organic and Wet Waste",
-    "Plastic Paper Glass Waste": "• Plastic Paper Glass Waste",
-    "Sanitary and Hazardous Waste": "• Sanitary and Hazardous Waste",
-    "Battery and Bulb Waste": "• Battery and Bulb Waste",
-    "Construction and Demolition Waste": "• Construction and Demolition Waste",
-    "Clothes Waste": "• Clothes Waste",
-    "Carcasses Waste": "• Carcasses Waste",
-    Others: "• Others",
+// Compact Tooltip Content Component
+const TooltipContent = ({ row }) => {
+  const getValue = (...keys) => {
+    for (const key of keys) {
+      const v = row[key];
+      if (v != null && v !== "" && String(v).trim().toLowerCase() !== "n_a") {
+        return String(v).trim().replace(/\r|\n/g, " ");
+      }
+    }
+    return "N/A";
   };
 
-  const WasteTypes = Object.keys(wasteTypesMap)
-    .filter((k) => row[k] === 1 || row[k] === true)
-    .map((k) => wasteTypesMap[k])
-    .join(LB);
+  return (
+    <div style={{ lineHeight: "1.25", fontSize: "12px", margin: 0, padding: 0 }}>
+      {/* GVP Information */}
+      <strong style={{ display: "block", margin: 0, padding: 0 }}>GVP Information</strong>
+      <div style={{ margin: 0, padding: 0 }}>Ward: {row["GVP Ward"] ?? "N/A"}</div>
+      <div style={{ margin: 0, padding: 0 }}>Nearest Location: {getValue("Nearest Location", "Nearest_Landmark_nearby_GVP")}</div>
+      <div style={{ margin: 0, padding: 0 }}>In What Setting is GVP Present: {categorizeLocation(getValue("In_what_setting_is_the_GVP_pre", "Kindly_specify_the_area", "Location Type"))}</div>
 
-  const OtherWaste = row["Other Waste Found"]
-    ? `• ${row["Other Waste Found"]}`
-    : "";
+      {/* Waste Type */}
+      <strong style={{ display: "block", marginTop: "6px", marginBottom: 0, padding: 0 }}>Waste Type:</strong>
+      <ul style={{ margin: 0, paddingLeft: "14px", listStyleType: "disc" }}>
+        {row["Organic and Wet Waste"] === 1 && <li style={{ margin: 0, padding: 0 }}>Organic and Wet Waste</li>}
+        {row["Plastic Paper Glass Waste"] === 1 && <li style={{ margin: 0, padding: 0 }}>Plastic Paper Glass Waste</li>}
+        {row["Sanitary and Hazardous Waste"] === 1 && <li style={{ margin: 0, padding: 0 }}>Sanitary and Hazardous Waste</li>}
+        {row["Battery and Bulb Waste"] === 1 && <li style={{ margin: 0, padding: 0 }}>Battery and Bulb Waste</li>}
+        {row["Construction and Demolition Waste"] === 1 && <li style={{ margin: 0, padding: 0 }}>Construction and Demolition Waste</li>}
+        {row["Clothes Waste"] === 1 && <li style={{ margin: 0, padding: 0 }}>Clothes Waste</li>}
+        {row["Carcasses Waste"] === 1 && <li style={{ margin: 0, padding: 0 }}>Carcasses Waste</li>}
+        {row["Others"] === 1 && <li style={{ margin: 0, padding: 0 }}>Others</li>}
+        {!(
+          row["Organic and Wet Waste"] === 1 ||
+          row["Plastic Paper Glass Waste"] === 1 ||
+          row["Sanitary and Hazardous Waste"] === 1 ||
+          row["Battery and Bulb Waste"] === 1 ||
+          row["Construction and Demolition Waste"] === 1 ||
+          row["Clothes Waste"] === 1 ||
+          row["Carcasses Waste"] === 1 ||
+          row["Others"] === 1
+        ) && <li style={{ margin: 0, padding: 0 }}>N/A</li>}
+      </ul>
 
-  const WasteTypeSection =
-    WasteTypes || OtherWaste
-      ? `Waste Type:${LB}${WasteTypes}${WasteTypes && OtherWaste ? LB : ""}${OtherWaste}${LB}`
-      : "";
+      {/* Information Shared by Citizens */}
+      <strong style={{ display: "block", marginTop: "6px", marginBottom: 0, padding: 0 }}>Information Shared by Citizens</strong>
+      <div style={{ margin: 0, padding: 0 }}>Has The Civic Authority Conducted Any Awareness Session: {getValue("Civic Authority Conduct Any Session", "Have_the_civic_authorities_con")}</div>
+      <div style={{ margin: 0, padding: 0 }}>Have Interviewees Complained to Authorities: {getValue("Have Interviewees Complained to Authority", "Have_you_complained_to_the_aut")}</div>
+      <div style={{ margin: 0, padding: 0 }}>If Yes How Was Your Experience: {getValue("If Yes How Was Your Experience ", "If_yes_how_was_your_experienc")}</div>
+      <div style={{ margin: 0, padding: 0 }}>How Often is Waste Spotted: {getValue("Notice Frequency", "How_frequently_do_you_notice_g")}</div>
+      <div style={{ margin: 0, padding: 0 }}>Where Interviewee Disposes Their Waste: {getValue("Where Interviewee Dispose Their Waste", "Where_do_you_dispose_off_your_")}</div>
 
-  const WasteQty = row["Waste Quantity Numeric"]
-    ? `Waste Volume: ${row["Waste Quantity Numeric"]}${LB}`
-    : "";
+      {/* Who disposes The Waste */}
+      <strong style={{ display: "block", marginTop: "6px", marginBottom: 0, padding: 0 }}>Who disposes The Waste:</strong>
+      <ul style={{ margin: 0, paddingLeft: "14px", listStyleType: "disc" }}>
+        {row.dispose_households === 1 && <li style={{ margin: 0, padding: 0 }}>Households</li>}
+        {row.dispose_vendors === 1 && <li style={{ margin: 0, padding: 0 }}>Vendors</li>}
+        {row.dispose_people_outside === 1 && <li style={{ margin: 0, padding: 0 }}>People from Outside</li>}
+        {row.dispose_passing_crowd === 1 && <li style={{ margin: 0, padding: 0 }}>Passing Crowd</li>}
+        {row.dispose_others === 1 && <li style={{ margin: 0, padding: 0 }}>Others</li>}
+        {!(
+          row.dispose_households === 1 ||
+          row.dispose_vendors === 1 ||
+          row.dispose_people_outside === 1 ||
+          row.dispose_passing_crowd === 1 ||
+          row.dispose_others === 1
+        ) && <li style={{ margin: 0, padding: 0 }}>N/A</li>}
+      </ul>
 
-  const Setting = row["In_what_setting_is_the_GVP_pre"]
-    ? `In What Setting is GVP Present: ${row["In_what_setting_is_the_GVP_pre"]}${LB}`
-    : "";
+      {/* Gender */}
+      {(getValue("No of Women", "group_ya6xw95_row/group_ya6xw95_row_column") !== "N/A" ||
+        getValue("No of Men", "group_ya6xw95_row/group_ya6xw95_row_column_1") !== "N/A") && (
+        <div>
+          <strong style={{ display: "block", marginTop: "6px", marginBottom: 0, padding: 0 }}>Gender:</strong>
+          <ul style={{ margin: 0, paddingLeft: "14px", listStyleType: "disc" }}>
+            {getValue("No of Women", "group_ya6xw95_row/group_ya6xw95_row_column") !== "N/A" && (
+              <li style={{ margin: 0, padding: 0 }}>Women: {getValue("No of Women", "group_ya6xw95_row/group_ya6xw95_row_column")}</li>
+            )}
+            {getValue("No of Men", "group_ya6xw95_row/group_ya6xw95_row_column_1") !== "N/A" && (
+              <li style={{ margin: 0, padding: 0 }}>Men: {getValue("No of Men", "group_ya6xw95_row/group_ya6xw95_row_column_1")}</li>
+            )}
+          </ul>
+        </div>
+      )}
 
-  const Area = row["Kindly_specify_the_area"]
-    ? `Area: ${row["Kindly_specify_the_area"]}${LB}`
-    : "";
+      {/* Reasons For Waste Accumulation */}
+      <strong style={{ display: "block", marginTop: "6px", marginBottom: 0, padding: 0 }}>Reasons For Waste Accumulation:</strong>
+      <ul style={{ margin: 0, paddingLeft: "14px", listStyleType: "disc" }}>
+        {row.reason_no_collection === 1 && <li style={{ margin: 0, padding: 0 }}>No Regular Collection Vehicle</li>}
+        {row.reason_random_people === 1 && <li style={{ margin: 0, padding: 0 }}>Random People Throwing Garbage</li>}
+        {row.reason_user_fee === 1 && <li style={{ margin: 0, padding: 0 }}>Due To User Fee</li>}
+        {row.reason_vehicle_time === 1 && <li style={{ margin: 0, padding: 0 }}>Mismatch of Vehicle Time</li>}
+        {row.reason_narrow_road === 1 && <li style={{ margin: 0, padding: 0 }}>Due to Narrow Road</li>}
+        {row.reason_market_vendors === 1 && <li style={{ margin: 0, padding: 0 }}>Because of Market and Street Vendors</li>}
+        {!(
+          row.reason_no_collection === 1 ||
+          row.reason_random_people === 1 ||
+          row.reason_user_fee === 1 ||
+          row.reason_vehicle_time === 1 ||
+          row.reason_narrow_road === 1 ||
+          row.reason_market_vendors === 1
+        ) && <li style={{ margin: 0, padding: 0 }}>N/A</li>}
+      </ul>
 
-  const Section_GVP_Body =
-    Ward + NearestLocation + Comments + WasteTypeSection + WasteQty + Setting + Area;
+      {/* Does Waste Get Cleared Off */}
+      <div style={{ marginTop: "6px", margin: 0, padding: 0 }}>Does Waste Get Cleared Off: {getValue("Does Waste Clear Off", "Does_waste_get_cleared_off_fro")}</div>
+      {getValue("When Waste Cleared Off", "If_yes_when_does_the_waste_ge") !== "N/A" && (
+        <div style={{ margin: 0, padding: 0 }}>When Waste Cleared Off: {getValue("When Waste Cleared Off", "If_yes_when_does_the_waste_ge")}</div>
+      )}
 
-  const Section_GVP = Section_GVP_Body
-    ? `GVP Information${LB}${Section_GVP_Body}`
-    : "";
+      {/* Problems Faced */}
+      <strong style={{ display: "block", marginTop: "6px", marginBottom: 0, padding: 0 }}>Problems Faced:</strong>
+      <ul style={{ margin: 0, paddingLeft: "14px", listStyleType: "disc" }}>
+        {row.problem_bad_odour === 1 && <li style={{ margin: 0, padding: 0 }}>Bad Odour</li>}
+        {row.problem_mosquitos === 1 && <li style={{ margin: 0, padding: 0 }}>Mosquitos</li>}
+        {row.problem_stray_animals === 1 && <li style={{ margin: 0, padding: 0 }}>Stray Animals</li>}
+        {row.problem_congestion === 1 && <li style={{ margin: 0, padding: 0 }}>Congestion</li>}
+        {row.problem_other === 1 && <li style={{ margin: 0, padding: 0 }}>Other</li>}
+        {!(
+          row.problem_bad_odour === 1 ||
+          row.problem_mosquitos === 1 ||
+          row.problem_stray_animals === 1 ||
+          row.problem_congestion === 1 ||
+          row.problem_other === 1
+        ) && <li style={{ margin: 0, padding: 0 }}>N/A</li>}
+      </ul>
 
-  const CivicSession = row["Civic Authority Conduct Any Session"]
-    ? `Has The Civic Authority Conducted Any Awareness Session: ${row["Civic Authority Conduct Any Session"]}${LB}`
-    : "";
-
-  const Complained = row["Have Interviewees Complained to Authority"]
-    ? `Have Interviewees Complained to Authorities: ${row["Have Interviewees Complained to Authority"]}${LB}`
-    : "";
-
-  const Experience = row["If Yes How Was Your Experience "]
-    ? `If Yes How Was Your Experience: ${row["If Yes How Was Your Experience "]}${LB}`
-    : "";
-
-  const NoticeFreq = row["Notice Frequency"]
-    ? `How Often is Waste Spotted: ${row["Notice Frequency"]}${LB}`
-    : "";
-
-  const Solution = row["Solution Suggested by Interviewee"]
-    ? `Solution Suggested By Interviewee: ${row["Solution Suggested by Interviewee"]}${LB}`
-    : "";
-
-  const DisposeWhere = row["Where Interviewee Dispose Their Waste"]
-    ? `Where Interviewee Disposes Their Waste: ${row["Where Interviewee Dispose Their Waste"]}${LB}`
-    : "";
-
-  const WhoDispose = row["Who Dispose"]
-    ? `Who disposes The Waste: ${row["Who Dispose"]}${LB}`
-    : "";
-
-  const GenderWomen = row["No of Women"];
-  const GenderMen = row["No of Men"];
-  const GenderBlock =
-    GenderWomen || GenderMen
-      ? `Gender:${LB}${
-          GenderWomen ? `• Women: ${GenderWomen}${LB}` : ""
-        }${GenderMen ? `• Men: ${GenderMen}${LB}` : ""}`
-      : "";
-
-  const wasteReasonsMap = {
-    "No Regular Collection Vehicle": "• No Regular Collection Vehicle",
-    "Random People Throwing Garbage": "• Random People Throwing Garbage",
-    "Due To User Fee": "• Due To User Fee",
-    "Mismatch of Vehicle Time": "• Mismatch of Vehicle Time",
-    "Due to Narrow Road": "• Due to Narrow Road",
-    "Because of Market and Street Vendors": "• Because of Market and Street Vendors",
-  };
-
-  const WasteReasons = Object.keys(wasteReasonsMap)
-    .filter((k) => row[k] === 1 || row[k] === true)
-    .map((k) => wasteReasonsMap[k])
-    .join(LB);
-
-  const WasteReasonsSection = WasteReasons
-    ? `Reasons For Waste Accumulation:${LB}${WasteReasons}${LB}`
-    : "";
-
-  const WasteClear = row["Does Waste Clear Off"]
-    ? `Does Waste Get Cleared Off: ${row["Does Waste Clear Off"]}${LB}`
-    : "";
-
-  const WasteClearWhen = row["When Waste Cleared Off"]
-    ? `When Waste Cleared Off: ${row["When Waste Cleared Off"]}${LB}`
-    : "";
-
-  const problemsMap = {
-    "Bad Odour": "• Bad Odour",
-    Mosquitos: "• Mosquitos",
-    "Stray Animals": "• Stray Animals",
-    Congestion: "• Congestion",
-    Other: "• Other",
-  };
-
-  const ProblemsFlags = Object.keys(problemsMap)
-    .filter((k) => row[k] === 1 || row[k] === true)
-    .map((k) => problemsMap[k])
-    .join(LB);
-
-  const OtherProblemText = row["Other Problem Face"];
-  const ProblemsCombined =
-    ProblemsFlags && OtherProblemText
-      ? ProblemsFlags + LB + `• ${OtherProblemText}`
-      : ProblemsFlags || (OtherProblemText ? `• ${OtherProblemText}` : "");
-
-  const ProblemsSection = ProblemsCombined
-    ? `Problems Faced:${LB}${ProblemsCombined}${LB}`
-    : "";
-
-  const Section_Interaction_Body =
-    CivicSession +
-    Complained +
-    Experience +
-    NoticeFreq +
-    Solution +
-    DisposeWhere +
-    WhoDispose +
-    GenderBlock +
-    WasteReasonsSection +
-    WasteClear +
-    WasteClearWhen +
-    ProblemsSection;
-
-  const Section_Interaction = Section_Interaction_Body
-    ? `Information Shared by Citizens${LB}${Section_Interaction_Body}`
-    : "";
-
-  return [Section_GVP, Section_Interaction].filter(Boolean).join(LB + LB);
+      {/* Solution Suggested by Interviewee */}
+      <strong style={{ display: "block", marginTop: "6px", marginBottom: 0, padding: 0 }}>Solution Suggested by Interviewee:</strong>
+      <ul style={{ margin: 0, paddingLeft: "14px", listStyleType: "disc" }}>
+        {row.solution_bins_facilities === 1 && <li style={{ margin: 0, padding: 0 }}>Bins and Facilities</li>}
+        {row.solution_technology_monitoring === 1 && <li style={{ margin: 0, padding: 0 }}>Technology-Enabled Monitoring</li>}
+        {row.solution_strict_enforcement === 1 && <li style={{ margin: 0, padding: 0 }}>Strict Enforcement Measures </li>}
+        {row.solution_public_awareness === 1 && <li style={{ margin: 0, padding: 0 }}>Public Awareness & Education </li>}
+        {row.solution_sanitization_roster === 1 && <li style={{ margin: 0, padding: 0 }}>Sanitization Vehicle Roster</li>}
+        {row.solution_regulatory_support === 1 && <li style={{ margin: 0, padding: 0 }}>Regulatory & Administrative Support</li>}
+        {row.solution_efficient_collection === 1 && <li style={{ margin: 0, padding: 0 }}>Efficient Waste Collection System</li>}
+        {row.solution_neutral === 1 && <li style={{ margin: 0, padding: 0 }}>Neutral Feedback</li>}
+        {!(
+          row.solution_bins_facilities === 1 ||
+          row.solution_technology_monitoring === 1 ||
+          row.solution_strict_enforcement === 1 ||
+          row.solution_public_awareness === 1 ||
+          row.solution_sanitization_roster === 1 ||
+          row.solution_regulatory_support === 1 ||
+          row.solution_efficient_collection === 1 ||
+          row.solution_neutral === 1
+        ) && <li style={{ margin: 0, padding: 0 }}>N/A</li>}
+      </ul>
+    </div>
+  );
 };
 
 // DataTable Component
@@ -327,10 +330,7 @@ const DataTable = ({ data, onRowClick, selectedRowIndex }) => {
                 Nearest Location
               </th>
               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                Photo URL
-              </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                Video URL
+                Media
               </th>
             </tr>
           </thead>
@@ -355,35 +355,27 @@ const DataTable = ({ data, onRowClick, selectedRowIndex }) => {
                   <td className="px-4 text-sm text-gray-700">
                     {row["Nearest Location"] || "N/A"}
                   </td>
-                  <td className="px-4 text-sm text-blue-600 hover:text-blue-800">
-                    {row["Photo URL"] ? (
+                  <td className="media-cell px-4 text-sm text-gray-700">
+                    {typeof row["Photo URL"] === "string" && row["Photo URL"].startsWith("http") ? (
                       <a
                         href={row["Photo URL"]}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="underline"
-                        onClick={(e) => e.stopPropagation()}
+                        className="media-btn photo"
                       >
-                        View Photo
+                        📷 Photo
                       </a>
-                    ) : (
-                      "N/A"
-                    )}
-                  </td>
-                  <td className="px-4 text-sm text-blue-600 hover:text-blue-800">
-                    {row["Video URL"] ? (
+                    ) : null}
+                    {typeof row["Video URL"] === "string" && row["Video URL"].startsWith("http") ? (
                       <a
                         href={row["Video URL"]}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="underline"
-                        onClick={(e) => e.stopPropagation()}
+                        className="media-btn video"
                       >
-                        View Video
+                        🎥 Video
                       </a>
-                    ) : (
-                      "N/A"
-                    )}
+                    ) : null}
                   </td>
                 </tr>
               );
@@ -449,18 +441,23 @@ const renderCustomBarLabel = ({ x, y, width, value, height }) => {
 
 // Calculate Problems Data with Normalization
 const calculateProblemsData = (data) => {
-  const problemsCount = {
-    "Bad Odour": 0,
-    Mosquitos: 0,
-    "Stray Animals": 0,
-    Congestion: 0,
-    Other: 0,
+  const problemMap = {
+    "Bad Odour": "problem_bad_odour",
+    "Mosquitos": "problem_mosquitos",
+    "Stray Animals": "problem_stray_animals",
+    "Congestion": "problem_congestion",
+    "Other": "problem_other",
   };
+
+  const problemsCount = {};
+  Object.keys(problemMap).forEach((display) => (problemsCount[display] = 0));
+
   data.forEach((row) => {
-    Object.keys(problemsCount).forEach((problem) => {
-      if (row[problem] === 1) problemsCount[problem] += 1;
+    Object.entries(problemMap).forEach(([display, key]) => {
+      if (row[key] === 1) problemsCount[display] += 1;
     });
   });
+
   const totalCount = Object.values(problemsCount).reduce((sum, count) => sum + count, 0);
   return Object.entries(problemsCount)
     .map(([problem, count]) => ({
@@ -480,12 +477,18 @@ const calculateReasonsData = (data) => {
     "Due to Narrow Road": 0,
     "Because of Market and Street Vendors": 0,
   };
+
   data.forEach((row) => {
-    Object.keys(reasonsCount).forEach((reason) => {
-      if (row[reason] === 1 || row[reason] === true) reasonsCount[reason] += 1;
-    });
+    reasonsCount["No Regular Collection Vehicle"] += row.reason_no_collection || 0;
+    reasonsCount["Random People Throwing Garbage"] += row.reason_random_people || 0;
+    reasonsCount["Due To User Fee"] += row.reason_user_fee || 0;
+    reasonsCount["Mismatch of Vehicle Time"] += row.reason_vehicle_time || 0;
+    reasonsCount["Due to Narrow Road"] += row.reason_narrow_road || 0;
+    reasonsCount["Because of Market and Street Vendors"] += row.reason_market_vendors || 0;
   });
+
   const totalCount = Object.values(reasonsCount).reduce((sum, count) => sum + count, 0);
+
   return Object.entries(reasonsCount)
     .map(([reason, count]) => ({
       name: reason,
@@ -594,35 +597,32 @@ function categorize(text) {
 
 // Calculate Who Dispose Data with Categorization
 const calculateWhoDisposeData = (data) => {
-  const disposeCount = categoryMap.reduce((acc, { category }) => {
-    acc[category] = 0;
-    return acc;
-  }, {});
+  const disposeCount = {
+    Households: 0,
+    Vendors: 0,
+    "People from Outside": 0,
+    "Passing Crowd": 0,
+    Others: 0,
+  };
 
   data.forEach((row) => {
-    const columns = ["Who Dispose1", "Who Dispose2", "Who Dispose3"];
-    columns.forEach((col) => {
-      const disposeValue = row[col];
-      if (disposeValue && disposeValue.trim() !== "" && disposeValue !== "N/A") {
-        const category = categorize(disposeValue);
-        if (category) {
-          disposeCount[category] = (disposeCount[category] || 0) + 1;
-        } else {
-          disposeCount["Others"] = (disposeCount["Others"] || 0) + 1;
-        }
-      }
-    });
+    disposeCount["Households"] += row.dispose_households || 0;
+    disposeCount["Vendors"] += row.dispose_vendors || 0;
+    disposeCount["People from Outside"] += row.dispose_people_outside || 0;
+    disposeCount["Passing Crowd"] += row.dispose_passing_crowd || 0;
+    disposeCount["Others"] += row.dispose_others || 0;
   });
 
-  const allData = Object.entries(disposeCount).map(([name, count]) => ({ name, count }));
-  const totalCount = allData.reduce((sum, item) => sum + item.count, 0);
+  const totalCount = Object.values(disposeCount).reduce((sum, count) => sum + count, 0);
+
   if (totalCount === 0) {
-    return categoryMap.map(({ category }) => ({ name: category, value: 0 }));
+    return Object.keys(disposeCount).map((name) => ({ name, value: 0 }));
   }
-  return allData
-    .map((item) => ({
-      name: item.name,
-      value: (item.count / totalCount) * 100,
+
+  return Object.entries(disposeCount)
+    .map(([name, count]) => ({
+      name,
+      value: (count / totalCount) * 100,
     }))
     .sort((a, b) => b.value - a.value);
 };
@@ -690,13 +690,32 @@ function categorizeLocation(text) {
 }
 
 const calculateSettingData = (data) => {
-  const settingCount = {};
+  const settingCount = {
+    "Residential Area": 0,
+    "Nallah / Drain": 0,
+    "Market / Commercial Area": 0,
+    "Playground / Open Space": 0,
+    "School / Institution": 0,
+    "Open Plot / Vacant Land": 0,
+    "Roadside / Footpath / Public Path": 0,
+    "Water Body / Lake Area": 0,
+    "Other / Miscellaneous": 0,
+  };
+
   data.forEach((row) => {
-    const settingValue = row["In_what_setting_is_the_GVP_pre"] || row["Location Type"] || row["other"] || "";
-    const category = categorizeLocation(settingValue);
-    settingCount[category] = (settingCount[category] || 0) + 1;
+    settingCount["Residential Area"] += row.setting_residential || 0;
+    settingCount["Nallah / Drain"] += row.setting_nallah || 0;
+    settingCount["Market / Commercial Area"] += row.setting_market || 0;
+    settingCount["Playground / Open Space"] += row.setting_playground || 0;
+    settingCount["School / Institution"] += row.setting_school || 0;
+    settingCount["Open Plot / Vacant Land"] += row.setting_open_plot || 0;
+    settingCount["Roadside / Footpath / Public Path"] += row.setting_roadside || 0;
+    settingCount["Water Body / Lake Area"] += row.setting_water_body || 0;
+    settingCount["Other / Miscellaneous"] += row.setting_other || 0;
   });
+
   const totalCount = Object.values(settingCount).reduce((sum, count) => sum + count, 0);
+
   return Object.entries(settingCount)
     .map(([name, count]) => ({
       name,
@@ -787,40 +806,421 @@ function categorizeSolution(text) {
 
 // Calculate Solution Data with Categorization
 const calculateSolutionData = (data) => {
-  const solutionCount = solutionCategories.reduce((acc, { category }) => {
-    acc[category] = 0;
-    return acc;
-  }, {});
+  const solutionCount = {
+    "Bins and Facilities": 0,
+    "Technology-Enabled Monitoring": 0,
+    "Strict Enforcement Measures ": 0,
+    "Public Awareness & Education ": 0,
+    "Sanitization Vehicle Roster": 0,
+    "Regulatory & Administrative Support": 0,
+    "Efficient Waste Collection System": 0,
+    "Neutral Feedback": 0,
+  };
 
   data.forEach((row) => {
-    const columns = [
-      "Solution Suggested by Interviewee1",
-      "Solution Suggested by Interviewee2",
-      "Solution Suggested by Interviewee3",
-    ];
-    columns.forEach((col) => {
-      const solutionValue = row[col];
-      if (solutionValue && solutionValue.trim() !== "" && solutionValue !== "N/A") {
-        const category = categorizeSolution(solutionValue);
-        if (category) {
-          solutionCount[category] = (solutionCount[category] || 0) + 1;
-        }
-      }
-    });
+    solutionCount["Bins and Facilities"] += row.solution_bins_facilities || 0;
+    solutionCount["Technology-Enabled Monitoring"] += row.solution_technology_monitoring || 0;
+    solutionCount["Strict Enforcement Measures "] += row.solution_strict_enforcement || 0;
+    solutionCount["Public Awareness & Education "] += row.solution_public_awareness || 0;
+    solutionCount["Sanitization Vehicle Roster"] += row.solution_sanitization_roster || 0;
+    solutionCount["Regulatory & Administrative Support"] += row.solution_regulatory_support || 0;
+    solutionCount["Efficient Waste Collection System"] += row.solution_efficient_collection || 0;
+    solutionCount["Neutral Feedback"] += row.solution_neutral || 0;
   });
 
-  const allData = Object.entries(solutionCount).map(([name, count]) => ({ name, count }));
-  const totalCount = allData.reduce((sum, item) => sum + item.count, 0);
+  const totalCount = Object.values(solutionCount).reduce((sum, count) => sum + count, 0);
+
   if (totalCount === 0) {
-    return solutionCategories.map(({ category }) => ({
-      name: category,
-      value: 100 / solutionCategories.length,
-    }));
+    return Object.keys(solutionCount).map((name) => ({ name, value: 0 }));
   }
-  return allData.map((item) => ({
-    name: item.name,
-    value: totalCount > 0 ? (item.count / totalCount) * 100 : 0,
-  })).sort((a, b) => b.value - a.value);
+
+  return Object.entries(solutionCount)
+    .map(([name, count]) => ({
+      name,
+      value: (count / totalCount) * 100,
+    }))
+    .sort((a, b) => b.value - a.value);
+};
+
+const wasteReasonsMap = {
+  "No Regular Collection Vehicle": ["no_regular_collection_vehicle"],
+  "Random People Throwing Garbage": ["anti_social_behaviour__youngsters_throwi"],
+  "Due To User Fee": ["due_to_user_fee"],
+  "Mismatch of Vehicle Time": ["mis_match_of_vehicle_time__many_people_l"],
+  "Due to Narrow Road": ["due_to_narrow_road__difficult_for_vehicl"],
+  "Because of Market and Street Vendors": ["because_of_market___street_vendors"]
+};
+
+// Unified normalization function - ENHANCED FOR ALL ISSUES
+const normalizeRow = (row) => {
+  const norm = { ...row };
+
+  // Ward
+  const wardValue = row["GVP Ward"] || row["Select_the_ward"] || row["GVP_Ward"] || row.ward || row.ward_no || row.ward_number || null;
+  if (wardValue !== null) {
+    norm["GVP Ward"] = Number(wardValue);
+    norm.cluster_id = norm["GVP Ward"];
+  }
+
+  // ID
+  const idValue = row.id || row.gvp_id || row._id || row.GVP_ID || null;
+  if (idValue !== null) norm.id = idValue;
+
+  // Location
+  let lat = row["_Record_the_location_of_GVP_latitude"] || row.latitude || row.lat || null;
+  let lng = row["_Record_the_location_of_GVP_longitude"] || row.longitude || row.lng || null;
+  const locStr = row["Record_the_location_of_GVP"] || row.location || null;
+  if ((!lat || !lng) && locStr) {
+    const parts = String(locStr).trim().split(/\s+/);
+    if (parts.length >= 2) {
+      lat = parseFloat(parts[0]) || lat;
+      lng = parseFloat(parts[1]) || lng;
+    }
+  }
+  if (lat !== null) norm["_Record_the_location_of_GVP_latitude"] = Number(lat);
+  if (lng !== null) norm["_Record_the_location_of_GVP_longitude"] = Number(lng);
+
+  // Waste type normalization (0/1)
+  const wasteMap = {
+    "Organic_and_Wet_Waste": "Organic and Wet Waste",
+    "Organic and Wet Waste": "Organic and Wet Waste",
+    "Plastic_Paper_Glass_Waste": "Plastic Paper Glass Waste",
+    "Plastic Paper Glass Waste": "Plastic Paper Glass Waste",
+    "Sanitary_and_Hazardous_Waste": "Sanitary and Hazardous Waste",
+    "Sanitary and Hazardous Waste": "Sanitary and Hazardous Waste",
+    "Battery_and_Bulb_Waste": "Battery and Bulb Waste",
+    "Battery and Bulb Waste": "Battery and Bulb Waste",
+    "Construction_and_Demolition_Waste": "Construction and Demolition Waste",
+    "Construction and Demolition Waste": "Construction and Demolition Waste",
+    "Clothes Waste": "Clothes Waste",
+    "Carcasses Waste": "Carcasses Waste",
+    "Others": "Others",
+  };
+  Object.entries(wasteMap).forEach(([srcKey, targetKey]) => {
+    if (row[srcKey] !== undefined) {
+      let val = row[srcKey];
+      if (val === "1_0" || val === "1" || val === 1 || val === true || String(val).trim() === "1") {
+        val = 1;
+      } else if (val === "0_0" || val === "0" || val === 0 || val === false || String(val).trim() === "0") {
+        val = 0;
+      } else {
+        val = 0;
+      }
+      norm[targetKey] = val;
+    }
+  });
+
+  const allWasteColumns = [
+    "Organic and Wet Waste",
+    "Plastic Paper Glass Waste",
+    "Sanitary and Hazardous Waste",
+    "Battery and Bulb Waste",
+    "Construction and Demolition Waste",
+    "Clothes Waste",
+    "Carcasses Waste",
+    "Others",
+  ];
+  allWasteColumns.forEach((col) => {
+    if (norm[col] === undefined) {
+      norm[col] = 0;
+    } else if (typeof norm[col] !== "number") {
+      norm[col] = (norm[col] === 1 || norm[col] === true || String(norm[col]).trim() === "1") ? 1 : 0;
+    }
+  });
+
+  // API waste type normalization
+  const apiWaste = row["What_kind_of_waste_do_you_obse"] || '';
+  const selectedWaste = apiWaste.split(' ').filter(Boolean);
+  const apiMapping = {
+    'wet_waste_organic_waste': "Organic and Wet Waste",
+    'dry_waste__plastic_paper_glass': "Plastic Paper Glass Waste",
+    'domestic_hazardous_sanitary_na': "Sanitary and Hazardous Waste",
+    'e_waste_batteries__bulbs_etc': "Battery and Bulb Waste",
+    'construction_and_demolition_wa': "Construction and Demolition Waste",
+    'clothes': "Clothes Waste",
+    'carcasses': "Carcasses Waste",
+    'others': "Others",
+  };
+  for (const sel of selectedWaste) {
+    const column = apiMapping[sel];
+    if (column) {
+      norm[column] = 1;
+    }
+  }
+
+  // Prioritize existing fields if present (static JSON)
+  let photoUrl = row["Photo URL"] || "";
+  let videoUrl = row["Video URL"] || "";
+
+  // Treat "N/A" as missing/invalid
+  if (photoUrl === "N/A") photoUrl = "";
+  if (videoUrl === "N/A") videoUrl = "";
+
+  // If not set or empty, check _attachments (API data)
+  if (!photoUrl || !videoUrl) {
+    if (Array.isArray(row._attachments)) {
+      const photoAttachment = row._attachments.find(att => att.mimetype === "image/jpeg");
+      const videoAttachment = row._attachments.find(att => att.mimetype === "video/mp4");
+      if (!photoUrl && photoAttachment) photoUrl = photoAttachment.download_url || "";
+      if (!videoUrl && videoAttachment) videoUrl = videoAttachment.download_url || "";
+    }
+  }
+
+  // Always set in normalized object
+  norm["Photo URL"] = photoUrl;
+  norm["Video URL"] = videoUrl;
+
+  // === FIX 1: Waste quantity normalization ===
+  let rawQuantity = row["Approx_Waste_Quantity_Found_at_GVP"];
+
+  if (!rawQuantity || String(rawQuantity).trim() === "") {
+    rawQuantity = row["Approx Waste Quantity Found at GVP"] ||
+                  row["Waste Quantity"] ||
+                  row["approx_waste_quantity_found_at_gvp"] ||
+                  row["ApproxWasteQuantityFoundatGVP"] ||
+                  row["Approx_quantity_of_waste_at_GV"] ||
+                  "";
+  }
+
+  const cleanedQuantity = String(rawQuantity || "").trim().toLowerCase().replace(/\s+/g, '_');
+  const normalizedWeight = getWasteWeight(cleanedQuantity);
+
+  norm["waste_hath_gadi"] = normalizedWeight;           // Primary normalized numeric field
+  norm["Waste Quantity Numeric"] = normalizedWeight;    // For tooltip compatibility
+
+  // === FIX 2: Nearest Location normalization ===
+  let nearestLocation = row["Nearest_Location"] || row["Nearest Location"] || row["Nearest_Landmark_nearby_GVP"] || "";
+  nearestLocation = String(nearestLocation).trim().replace(/[\r\n]+/g, " ");
+  norm["Nearest Location"] = nearestLocation || null;  // Set to null if empty, table handles "N/A"
+
+  norm.city = row.city || row.City || "Nagpur";
+
+  // === FIX for Who Dispose columns ===
+  norm["Who Dispose1"] = row["Who Dispose1"] || row["Who_Dispose1"] || "N/A";
+  norm["Who Dispose2"] = row["Who Dispose2"] || row["Who_Dispose2"] || "N/A";
+  norm["Who Dispose3"] = row["Who Dispose3"] || row["Who_Dispose3"] || "N/A";
+
+  // Problem normalization
+  const problemStaticMap = {
+    "Bad Odour": "problem_bad_odour",
+    "Mosquitos": "problem_mosquitos",
+    "Stray Animals": "problem_stray_animals",
+    "Congestion": "problem_congestion",
+    "Other": "problem_other",
+  };
+  Object.entries(problemStaticMap).forEach(([staticKey, normKey]) => {
+    norm[normKey] = row[staticKey] === 1 ? 1 : 0;
+  });
+
+  const apiProblems = row["What_kind_of_problems_do_you_e"] || '';
+  const selectedProblems = apiProblems.split(' ').filter(Boolean);
+  const apiProblemMapping = {
+    'bad_odour': "problem_bad_odour",
+    'mosquitoes': "problem_mosquitos",
+    'stray_animals': "problem_stray_animals",
+    'congestion': "problem_congestion",
+    'other': "problem_other",
+  };
+  for (const sel of selectedProblems) {
+    const normKey = apiProblemMapping[sel];
+    if (normKey) {
+      norm[normKey] = 1;
+    }
+  }
+
+  // Who Dispose normalization
+  norm.dispose_households = 0;
+  norm.dispose_vendors = 0;
+  norm.dispose_people_outside = 0;
+  norm.dispose_passing_crowd = 0;
+  norm.dispose_others = 0;
+
+  // Static logic
+  const staticColumns = ["Who Dispose1", "Who Dispose2", "Who Dispose3"];
+  const staticCategories = new Set();
+  staticColumns.forEach((col) => {
+    const value = norm[col];
+    if (value && value !== "N/A") {
+      const cat = categorize(value);
+      if (cat) {
+        staticCategories.add(cat);
+      }
+    }
+  });
+  staticCategories.forEach((cat) => {
+    if (cat === "Households") norm.dispose_households = 1;
+    if (cat === "Vendors") norm.dispose_vendors = 1;
+    if (cat === "People from Outside") norm.dispose_people_outside = 1;
+    if (cat === "Passing Crowd") norm.dispose_passing_crowd = 1;
+    if (cat === "Others") norm.dispose_others = 1;
+  });
+
+  // API logic
+  const apiDispose = row["Who_disposes_the_waste_at_the_"] || '';
+  const selectedDispose = apiDispose.split(' ').filter(Boolean);
+  const apiDisposeMapping = {
+    'households': "Households",
+    'vendors': "Vendors",
+    'people_from_outside': "People from Outside",
+    'passing_crowd': "Passing Crowd",
+    'others': "Others",
+    'n_a': "Others",
+  };
+  const apiCategories = new Set();
+  selectedDispose.forEach((sel) => {
+    const cat = apiDisposeMapping[sel];
+    if (cat) {
+      apiCategories.add(cat);
+    }
+  });
+  apiCategories.forEach((cat) => {
+    if (cat === "Households") norm.dispose_households = 1;
+    if (cat === "Vendors") norm.dispose_vendors = 1;
+    if (cat === "People from Outside") norm.dispose_people_outside = 1;
+    if (cat === "Passing Crowd") norm.dispose_passing_crowd = 1;
+    if (cat === "Others") norm.dispose_others = 1;
+  });
+
+  // Solutions normalization
+  norm.solution_bins_facilities = 0;
+  norm.solution_technology_monitoring = 0;
+  norm.solution_strict_enforcement = 0;
+  norm.solution_public_awareness = 0;
+  norm.solution_sanitization_roster = 0;
+  norm.solution_regulatory_support = 0;
+  norm.solution_efficient_collection = 0;
+  norm.solution_neutral = 0;
+
+  const solutionCats = new Set();
+
+  // Static solutions
+  const staticSolutionColumns = [
+    "Solution Suggested by Interviewee1",
+    "Solution Suggested by Interviewee2",
+    "Solution Suggested by Interviewee3",
+  ];
+  staticSolutionColumns.forEach((col) => {
+    const value = row[col];
+    if (value && value.trim() !== "" && value !== "N/A") {
+      const cat = categorizeSolution(value);
+      if (cat) {
+        solutionCats.add(cat);
+      }
+    }
+  });
+
+  // API solutions
+  const apiSolution = row["What_solutions_do_you_think_wo"] || '';
+  const selectedApi = apiSolution.split(' ').filter(Boolean);
+  const apiSolutionMap = {
+    'strict_enforcement_measures': "Strict Enforcement Measures ",
+    'bins_and_facilities': "Bins and Facilities",
+    'public_awareness__education': "Public Awareness & Education ",
+    'sanitization_vehicle_roster': "Sanitization Vehicle Roster",
+    'technology_enabledmonitoring': "Technology-Enabled Monitoring",
+    'efficient_waste_collectionsystem': "Efficient Waste Collection System",
+    'regulatory___administrativesupport': "Regulatory & Administrative Support",
+    'neutral_feedback': "Neutral Feedback",
+    'n_a': "Neutral Feedback",
+  };
+  selectedApi.forEach((sel) => {
+    const cat = apiSolutionMap[sel];
+    if (cat) {
+      solutionCats.add(cat);
+    }
+  });
+
+  // Set normalized fields
+  solutionCats.forEach((cat) => {
+    if (cat === "Bins and Facilities") norm.solution_bins_facilities = 1;
+    if (cat === "Technology-Enabled Monitoring") norm.solution_technology_monitoring = 1;
+    if (cat === "Strict Enforcement Measures ") norm.solution_strict_enforcement = 1;
+    if (cat === "Public Awareness & Education ") norm.solution_public_awareness = 1;
+    if (cat === "Sanitization Vehicle Roster") norm.solution_sanitization_roster = 1;
+    if (cat === "Regulatory & Administrative Support") norm.solution_regulatory_support = 1;
+    if (cat === "Efficient Waste Collection System") norm.solution_efficient_collection = 1;
+    if (cat === "Neutral Feedback") norm.solution_neutral = 1;
+  });
+
+  // Setting normalization
+  norm.setting_residential = 0;
+  norm.setting_nallah = 0;
+  norm.setting_market = 0;
+  norm.setting_playground = 0;
+  norm.setting_school = 0;
+  norm.setting_open_plot = 0;
+  norm.setting_roadside = 0;
+  norm.setting_water_body = 0;
+  norm.setting_other = 0;
+
+  const settingValue = row["In_what_setting_is_the_GVP_pre"] || row["Location Type"] || row["other"] || row["Kindly_specify_the_area"] || "";
+  const settingCategory = categorizeLocation(settingValue);
+
+  if (settingCategory === "Residential Area") norm.setting_residential = 1;
+  else if (settingCategory === "Nallah / Drain") norm.setting_nallah = 1;
+  else if (settingCategory === "Market / Commercial Area") norm.setting_market = 1;
+  else if (settingCategory === "Playground / Open Space") norm.setting_playground = 1;
+  else if (settingCategory === "School / Institution") norm.setting_school = 1;
+  else if (settingCategory === "Open Plot / Vacant Land") norm.setting_open_plot = 1;
+  else if (settingCategory === "Roadside / Footpath / Public Path") norm.setting_roadside = 1;
+  else if (settingCategory === "Water Body / Lake Area") norm.setting_water_body = 1;
+  else if (settingCategory === "Other / Miscellaneous") norm.setting_other = 1;
+
+  // Reasons normalization
+  norm.reason_no_collection = 0;
+  norm.reason_random_people = 0;
+  norm.reason_user_fee = 0;
+  norm.reason_vehicle_time = 0;
+  norm.reason_narrow_road = 0;
+  norm.reason_market_vendors = 0;
+
+  // Static reasons
+  if (row["No Regular Collection Vehicle"] === 1 || row["No Regular Collection Vehicle"] === true) norm.reason_no_collection = 1;
+  if (row["Random People Throwing Garbage"] === 1 || row["Random People Throwing Garbage"] === true) norm.reason_random_people = 1;
+  if (row["Due To User Fee"] === 1 || row["Due To User Fee"] === true) norm.reason_user_fee = 1;
+  if (row["Mismatch of Vehicle Time"] === 1 || row["Mismatch of Vehicle Time"] === true) norm.reason_vehicle_time = 1;
+  if (row["Due to Narrow Road"] === 1 || row["Due to Narrow Road"] === true) norm.reason_narrow_road = 1;
+  if (row["Because of Market and Street Vendors"] === 1 || row["Because of Market and Street Vendors"] === true) norm.reason_market_vendors = 1;
+
+  // API reasons
+  const apiReasons = row["What_might_be_the_reason_for_w"] || '';
+  const selectedReasons = apiReasons.split(' ').filter(Boolean);
+  const apiReasonsMapping = {};
+  Object.entries(wasteReasonsMap).forEach(([display, apis]) => {
+    apis.forEach(api => apiReasonsMapping[api] = display);
+  });
+  selectedReasons.forEach((sel) => {
+    const reason = apiReasonsMapping[sel];
+    if (reason === "No Regular Collection Vehicle") norm.reason_no_collection = 1;
+    if (reason === "Random People Throwing Garbage") norm.reason_random_people = 1;
+    if (reason === "Due To User Fee") norm.reason_user_fee = 1;
+    if (reason === "Mismatch of Vehicle Time") norm.reason_vehicle_time = 1;
+    if (reason === "Due to Narrow Road") norm.reason_narrow_road = 1;
+    if (reason === "Because of Market and Street Vendors") norm.reason_market_vendors = 1;
+  });
+
+  return norm;
+};
+
+// Stable deduplication
+const deduplicate = (rows) => {
+  const seen = new Map();
+  const unique = [];
+  for (const row of rows) {
+    let key = null;
+    if (row.id !== undefined && row.id !== null) key = `id:${row.id}`;
+    else if (row.cluster_id !== undefined && row.cluster_id !== null) key = `cluster:${row.cluster_id}`;
+    else {
+      const lat = Number(row["_Record_the_location_of_GVP_latitude"] || 0).toFixed(6);
+      const lng = Number(row["_Record_the_location_of_GVP_longitude"] || 0).toFixed(6);
+      key = `loc:${lat}_${lng}`;
+    }
+    if (!seen.has(key)) {
+      seen.set(key, true);
+      unique.push(row);
+    }
+  }
+  return unique;
 };
 
 // City Slicer Component
@@ -847,28 +1247,52 @@ const CitySlicer = ({ selectedCity, setSelectedCity }) => {
 };
 
 function App() {
-  const [allData, setAllData] = useState([]);
+  const [apiData, setApiData] = useState([]);
+  const [normalizedMergedData, setNormalizedMergedData] = useState([]);
   const [selectedWards, setSelectedWards] = useState([]);
   const [selectedRowIndex, setSelectedRowIndex] = useState(null);
   const [mapInstance, setMapInstance] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedCity, setSelectedCity] = useState("Nagpur");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const isSmallScreen = useMediaQuery({ query: "(max-width: 768px)" });
 
+  const staticNormalized = useMemo(() => staticDataRaw.map(normalizeRow), []);
+
   useEffect(() => {
-    if (selectedCity === "Nagpur") {
-      fetch("/data_cleaned.json")
-        .then((res) => res.json())
-        .then((json) => setAllData(json));
-    } else {
-      setAllData([]);
-    }
-  }, [selectedCity]);
+    const combined = [...staticNormalized, ...apiData];
+    const unique = deduplicate(combined);
+    setNormalizedMergedData(unique);
+  }, [staticNormalized, apiData]);
+
+  useEffect(() => {
+    fetch("https://kobo-proxy.onrender.com/api/kobo")
+      .then((res) => {
+        setIsLoading(false);
+        if (!res.ok) {
+          setError(`API failure, status: ${res.status}`);
+          return null;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (data !== null) {
+          const rawResults = Array.isArray(data.results) ? data.results : [];
+          const normalizedApi = rawResults.map(normalizeRow);
+          setApiData(normalizedApi);
+        }
+      })
+      .catch((err) => {
+        setIsLoading(false);
+        setError(`API Error: ${err.message}`);
+      });
+  }, []);
 
   const uniqueWards = useMemo(() => {
     const wardsSet = new Set(
-      allData
+      normalizedMergedData
         .map((row) =>
           row["GVP Ward"] !== null && row["GVP Ward"] !== undefined
             ? String(row["GVP Ward"])
@@ -877,71 +1301,54 @@ function App() {
         .filter(Boolean)
     );
     return Array.from(wardsSet).sort((a, b) => Number(a) - Number(b));
-  }, [allData]);
+  }, [normalizedMergedData]);
 
   const filteredData = useMemo(() => {
-    return allData.filter(
-      (row) =>
-        selectedWards.length === 0 ||
-        selectedWards.includes(String(row["GVP Ward"]))
-    );
-  }, [allData, selectedWards]);
+    return normalizedMergedData.filter((row) => {
+      const rowCity = (row.city || "Nagpur").toLowerCase().trim();
+      const selected = selectedCity.toLowerCase().trim();
+      const wardMatch = selectedWards.length === 0 || selectedWards.includes(String(row["GVP Ward"]));
+      return rowCity === selected && wardMatch;
+    });
+  }, [normalizedMergedData, selectedWards, selectedCity]);
 
-  const filteredTableData = filteredData.filter(
-    (row) => row["Type_of_Form"] === "form_for_gvp"
-  );
+  const filteredTableData = useMemo(() => {
+    return filteredData.filter((row) => row["Type_of_Form"] === "form_for_gvp");
+  }, [filteredData]);
 
   const selectedRow = selectedRowIndex !== null ? filteredTableData[selectedRowIndex] : null;
 
-  useEffect(() => {
-    if (mapInstance && selectedRow) {
-      const lat = Number(selectedRow["GVP Latitude"]);
-      const lng = Number(selectedRow["GVP Longitude"]);
-      if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
-        try {
-          mapInstance.flyTo([lat, lng], Math.max(mapInstance.getZoom(), 15), {
-            animate: true,
-            duration: 0.6,
-          });
-        } catch (e) {}
-      }
-    }
-  }, [selectedRow, mapInstance]);
+  const filteredDataForCards = useMemo(() => {
+    return selectedRow ? [selectedRow] : filteredData;
+  }, [selectedRow, filteredData]);
 
-  useEffect(() => {
-    setSelectedRowIndex(null);
-  }, [selectedWards, allData]);
+  const totalGarbagePoints = normalizedMergedData.length;
 
-  const filteredDataForCards = selectedRow ? [selectedRow] : filteredTableData;
+  const totalHathGadiVolume = useMemo(() => {
+    return filteredDataForCards.reduce((sum, row) => {
+      const weight = Number(row["waste_hath_gadi"]) || 0;
+      return sum + weight;
+    }, 0);
+  }, [filteredDataForCards]);
 
-  const totalGarbagePoints = filteredDataForCards.length;
+  const pieData = useMemo(() => {
+    return selectedRow
+      ? calculatePieForRow(selectedRow)
+      : calculateWasteTypeCounts(filteredDataForCards);
+  }, [selectedRow, filteredDataForCards]);
 
-  const totalHathGadiVolume = filteredDataForCards.reduce((sum, row) => {
-    const quantity = row["Approx Waste Quantity Found at GVP"];
-    const weight = getWasteWeight(quantity);
-    return sum + weight;
-  }, 0);
-
-  const pieData = selectedRow
-    ? calculatePieForRow(selectedRow)
-    : calculateWasteTypeCounts(filteredDataForCards);
-
-  const problemsData = calculateProblemsData(filteredDataForCards);
-
-  const reasonsData = calculateReasonsData(filteredDataForCards);
-
-  const whoDisposeData = calculateWhoDisposeData(filteredDataForCards);
-
-  const settingData = calculateSettingData(filteredDataForCards);
-
-  const solutionData = calculateSolutionData(filteredDataForCards);
+  const problemsData = useMemo(() => calculateProblemsData(filteredDataForCards), [filteredDataForCards]);
+  const reasonsData = useMemo(() => calculateReasonsData(filteredDataForCards), [filteredDataForCards]);
+  const whoDisposeData = useMemo(() => calculateWhoDisposeData(filteredDataForCards), [filteredDataForCards]);
+  const settingData = useMemo(() => calculateSettingData(filteredDataForCards), [filteredDataForCards]);
+  const solutionData = useMemo(() => calculateSolutionData(filteredDataForCards), [filteredDataForCards]);
 
   const mapCenter = [21.135, 79.085];
 
   const handleMarkerClick = (row) => {
-    const keyOfRow = `${row["GVP Latitude"]}-${row["GVP Longitude"]}-${row["GVP Ward"]}`;
+    const keyOfRow = `${row["_Record_the_location_of_GVP_latitude"]}-${row["_Record_the_location_of_GVP_longitude"]}-${row["GVP Ward"]}`;
     const idx = filteredTableData.findIndex(
-      (r) => `${r["GVP Latitude"]}-${r["GVP Longitude"]}-${r["GVP Ward"]}` === keyOfRow
+      (r) => `${r["_Record_the_location_of_GVP_latitude"]}-${r["_Record_the_location_of_GVP_longitude"]}-${r["GVP Ward"]}` === keyOfRow
     );
 
     if (idx !== -1) {
@@ -951,8 +1358,8 @@ function App() {
         setSelectedRowIndex(idx);
       }
       if (mapInstance) {
-        const lat = Number(row["GVP Latitude"]);
-        const lng = Number(row["GVP Longitude"]);
+        const lat = Number(row["_Record_the_location_of_GVP_latitude"]);
+        const lng = Number(row["_Record_the_location_of_GVP_longitude"]);
         if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
           try {
             mapInstance.flyTo([lat, lng], 15, { animate: true, duration: 0.5 });
@@ -987,6 +1394,25 @@ function App() {
   };
 
   const isNagpurSelected = selectedCity === "Nagpur";
+
+  useEffect(() => {
+    if (mapInstance && selectedRow) {
+      const lat = Number(selectedRow["_Record_the_location_of_GVP_latitude"]);
+      const lng = Number(selectedRow["_Record_the_location_of_GVP_longitude"]);
+      if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+        try {
+          mapInstance.flyTo([lat, lng], Math.max(mapInstance.getZoom(), 15), {
+            animate: true,
+            duration: 0.6,
+          });
+        } catch (e) {}
+      }
+    }
+  }, [selectedRow, mapInstance]);
+
+  useEffect(() => {
+    setSelectedRowIndex(null);
+  }, [selectedWards, normalizedMergedData]);
 
   return (
     <div className="p-4 sm:p-6 bg-gray-100 min-h-screen font-sans">
@@ -1026,15 +1452,22 @@ function App() {
         <Route path="/impact" element={<Impact />} />
         <Route path="/" element={
           <div className="flex flex-col lg:flex-row gap-6 mt-6">
-            {/* LEFT COLUMN - Full width on mobile */}
+            {/* LEFT COLUMN */}
             <div className="w-full lg:w-[460px] space-y-6">
 
-              {/* New Position for City Slicer */}
               <CitySlicer selectedCity={selectedCity} setSelectedCity={setSelectedCity} />
 
-              {isNagpurSelected ? (
+              {isLoading ? (
+                <div className="mt-6 p-10 bg-white rounded-xl shadow-2xl text-center">
+                  <p className="text-2xl font-bold text-gray-800">Loading data...</p>
+                </div>
+              ) : error ? (
+                <div className="mt-6 p-10 bg-white rounded-xl shadow-2xl text-center border-4 border-red-400">
+                  <p className="text-2xl font-bold text-red-600">Error: {error}</p>
+                </div>
+              ) : isNagpurSelected ? (
                 <>
-                  {/* 1. Summary Cards */}
+                  {/* Summary Cards */}
                   <div className="flex flex-row flex-nowrap gap-4 overflow-x-auto pb-2 ">
                     <div className={`bg-white p-4 rounded-lg shadow-lg text-center border-b-4 border-yellow-500 flex flex-col justify-center ${CARD_SIZE_CLASSES}`}>
                       <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
@@ -1055,7 +1488,7 @@ function App() {
                     </div>
                   </div>
 
-                  {/* 3. Ward Selector */}
+                  {/* Ward Selector */}
                   <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 relative ">
                     <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">Wards</h2>
                     <div className="relative">
@@ -1096,7 +1529,7 @@ function App() {
                     </div>
                   </div>
 
-                  {/* 4. Table */}
+                  {/* Table */}
                   <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200">
                     <DataTable
                       data={selectedRow ? [selectedRow] : filteredDataForCards}
@@ -1105,14 +1538,14 @@ function App() {
                     />
                   </div>
 
-                  {/* 5. Pie Chart */}
+                  {/* Pie Chart */}
                   <div className="bg-white rounded-lg shadow p-3 w-full">
                     <h3 className="text-center text-sm sm:text-base font-semibold mb-2">
                       Breakdown by Waste Type
                     </h3>
 
                     <div className="w-full h-72 sm:h-64 md:h-72 lg:h-80">
-                      <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height={300}>
                         <PieChart>
                           <Pie
                             data={pieData}
@@ -1124,7 +1557,8 @@ function App() {
                             innerRadius={isSmallScreen ? 30 : 60}
                             paddingAngle={2}
                             label={renderCustomizedLabel(isSmallScreen)}
-                            labelLine={!isSmallScreen}
+                            labelLine={true}
+                            minAngle={5}
                           >
                             {pieData.map((entry, index) => (
                               <Cell
@@ -1139,12 +1573,12 @@ function App() {
                     </div>
                   </div>
 
-                  {/* 10. Solutions Chart */}
+                  {/* Solutions Chart */}
                   <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 ">
                     <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
                       Top Solutions Suggested (by Citizens)
                     </h2>
-                    <ResponsiveContainer width="100%" height={400}>
+                    <ResponsiveContainer width="100%" height={300}>
                       <BarChart data={solutionData} layout="vertical">
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis type="number" domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
@@ -1188,7 +1622,7 @@ function App() {
 
               {isNagpurSelected ? (
                 <>
-                  {/* 2. Map */}
+                  {/* Map */}
                   <div className="h-[700px] lg:h-[850px]">
                     <MapContainer
                       whenCreated={setMapInstance}
@@ -1201,10 +1635,10 @@ function App() {
                         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                       />
                       {(selectedRow ? [selectedRow] : filteredDataForCards)
-                        .filter((row) => row["GVP Latitude"] && row["GVP Longitude"])
+                        .filter((row) => row["_Record_the_location_of_GVP_latitude"] && row["_Record_the_location_of_GVP_longitude"])
                         .map((row, idx) => {
-                          const lat = Number(row["GVP Latitude"]);
-                          const lng = Number(row["GVP Longitude"]);
+                          const lat = Number(row["_Record_the_location_of_GVP_latitude"]);
+                          const lng = Number(row["_Record_the_location_of_GVP_longitude"]);
                           const ward = row["GVP Ward"] || "";
                           const stableKey = `${ward}-${lat}-${lng}-${idx}`;
 
@@ -1240,25 +1674,20 @@ function App() {
                               >
                                 <div
                                   style={{
-                                    maxWidth: 700,
+                                    maxWidth: 480,
                                     minWidth: 400,
-                                    minHeight: 400,
                                     overflow: "visible",
-                                    whiteSpace: "pre-wrap",
-                                    fontSize: 12,
-                                    lineHeight: 1.0,
-                                    padding: 12,
+                                    whiteSpace: "normal",
+                                    padding: 10,
                                     background: "white",
                                     borderRadius: 10,
                                     boxShadow: "0 8px 22px rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.08)",
                                   }}
                                 >
-                                  <div style={{ marginBottom: 8, fontWeight: 700 }}>
+                                  <div style={{ marginBottom: 6, fontWeight: 700 }}>
                                     Garbage Point Info
                                   </div>
-                                  <div style={{ marginBottom: 8 }}>
-                                    {getGarbagePointInfo(row)}
-                                  </div>
+                                  <TooltipContent row={row} />
                                 </div>
                               </LeafletTooltip>
                             </Marker>
@@ -1274,12 +1703,12 @@ function App() {
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
 
                     <div className="space-y-6">
-                      {/* 6. Problems */}
+                      {/* Problems */}
                       <div className="bg-white px-6 py-5 rounded-lg shadow-lg border border-gray-200 overflow-x-auto">
                         <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
                           Top Problems Faced by Residents around GVP
                         </h2>
-                        <ResponsiveContainer width="100%" minWidth={360} height={isSmallScreen ? 250 : 290}>
+                        <ResponsiveContainer width="100%" height={300}>
                           <BarChart data={problemsData} layout="vertical"
                             margin={{
                               top: 10,
@@ -1320,12 +1749,12 @@ function App() {
                         </ResponsiveContainer>
                       </div>
 
-                      {/* 8. Settings */}
+                      {/* Settings */}
                       <div className="bg-white px-6 py-5 rounded-lg shadow-lg border border-gray-200 overflow-x-auto">
                         <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
                           Top Settings Where GVPs Are Found
                         </h2>
-                        <ResponsiveContainer width="100%" minWidth={320} height={isSmallScreen ? 360 : 390}>
+                        <ResponsiveContainer width="100%" height={300}>
                           <BarChart data={settingData}
                             layout="vertical"
                             margin={{
@@ -1366,12 +1795,12 @@ function App() {
                     </div>
 
                     <div className="space-y-6">
-                      {/* 7. Who Dispose */}
+                      {/* Who Dispose */}
                       <div className="bg-white px-6 py-5 rounded-lg shadow-lg border border-gray-200 overflow-x-auto">
                         <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
                           Who is Disposing the most Waste (as per Citizens)
                         </h2>
-                        <ResponsiveContainer width="100%" minWidth={360} height={isSmallScreen ? 250 : 290}>
+                        <ResponsiveContainer width="100%" height={300}>
                           <BarChart data={whoDisposeData}
                             layout="vertical"
                             margin={{
@@ -1410,12 +1839,12 @@ function App() {
                         </ResponsiveContainer>
                       </div>
 
-                      {/* 9. Reasons */}
+                      {/* Reasons */}
                       <div className="bg-white px-6 py-5 rounded-lg shadow-lg border border-gray-200 overflow-x-auto">
                         <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
                           Reasons for Waste Accumulation
                         </h2>
-                        <ResponsiveContainer width="100%" minWidth={320} height={isSmallScreen ? 360 : 390}>
+                        <ResponsiveContainer width="100%" height={300}>
                           <BarChart
                             data={reasonsData}
                             layout="vertical"
@@ -1454,19 +1883,19 @@ function App() {
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
-                      
                     </div>
+
                     {/* Footer */}
-<footer className="mt-12 pb-4 text-center">
-  <a
-    href="https://themetropolitaninstitute.com/"
-    target="_blank"
-    rel="noopener noreferrer"
-    className="text-xl font-bold text-gray-600 hover:text-blue-400 transition duration-300"
-  >
-    Developed by The Metropolitan Institute
-  </a>
-</footer>
+                    <footer className="mt-12 pb-4 text-center">
+                      <a
+                        href="https://themetropolitaninstitute.com/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xl font-bold text-gray-600 hover:text-blue-400 transition duration-300"
+                      >
+                        Developed by The Metropolitan Institute
+                      </a>
+                    </footer>
 
                   </div>
                 </>
@@ -1479,7 +1908,6 @@ function App() {
         } />
       </Routes>
     </div>
-    
   );
 }
 
