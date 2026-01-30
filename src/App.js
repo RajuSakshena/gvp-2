@@ -5,6 +5,8 @@ import "react-image-gallery/styles/css/image-gallery.css";
 import About from "./About";
 import Partners from "./Partners";
 import Impact from "./Impact";
+import Mainicon from "./our-partner/favicon.png";
+
 import {
   PieChart,
   Pie,
@@ -1418,9 +1420,18 @@ function App() {
     <div className="p-4 sm:p-6 bg-gray-100 min-h-screen font-sans">
       {/* Header Section */}
       <div className="text-center mb-6">
-        <h1 className="text-3xl font-bold mb-2 text-gray-800">
-          Bharat Garbage Tracker
-        </h1>
+  <div className="flex justify-center items-center gap-3 mb-2">
+    <img
+  src={Mainicon}
+  alt="Mainicon Logo"
+  className="h-10 w-auto"
+  
+/>
+
+    <h1 className="text-3xl font-bold text-gray-800">
+      Bharat Garbage Tracker
+    </h1>
+  </div>
         
         {/* Menu Bar - Always Visible */}
         <nav className="flex justify-center space-x-8 mt-4 border-b border-gray-200 pb-2">
