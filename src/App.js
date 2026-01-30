@@ -287,7 +287,7 @@ const TooltipContent = ({ row }) => {
 
 // DataTable Component
 const DataTable = ({ data, onRowClick, selectedRowIndex }) => {
-  const tableData = [...data.filter((row) => row["Type_of_Form"] === "form_for_gvp")].sort((a, b) => {
+  const tableData = [...data].sort((a, b) => {
     const wardA = a["GVP Ward"] ? Number(a["GVP Ward"]) : Infinity;
     const wardB = b["GVP Ward"] ? Number(b["GVP Ward"]) : Infinity;
     return wardA - wardB;
@@ -1313,7 +1313,7 @@ function App() {
   }, [normalizedMergedData, selectedWards, selectedCity]);
 
   const filteredTableData = useMemo(() => {
-    return filteredData.filter((row) => row["Type_of_Form"] === "form_for_gvp");
+    return filteredData;
   }, [filteredData]);
 
   const selectedRow = selectedRowIndex !== null ? filteredTableData[selectedRowIndex] : null;
@@ -1322,7 +1322,7 @@ function App() {
     return selectedRow ? [selectedRow] : filteredData;
   }, [selectedRow, filteredData]);
 
-  const totalGarbagePoints = normalizedMergedData.length;
+  const totalGarbagePoints = filteredData.length;
 
   const totalHathGadiVolume = useMemo(() => {
     return filteredDataForCards.reduce((sum, row) => {
