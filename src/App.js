@@ -1258,6 +1258,7 @@ function App() {
   const [selectedCity, setSelectedCity] = useState("Nagpur");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isKeyFindingsOpen, setIsKeyFindingsOpen] = useState(true);
 
   const isSmallScreen = useMediaQuery({ query: "(max-width: 768px)" });
 
@@ -1558,7 +1559,7 @@ function App() {
                   </div>
 
                   {/* Pie Chart */}
-                  <div className="bg-white rounded-lg shadow p-3 w-full">
+                  {isKeyFindingsOpen && <div className="bg-white rounded-lg shadow p-3 w-full">
                     <h3 className="text-center text-sm sm:text-base font-semibold mb-2">
                       Breakdown by Waste Type
                     </h3>
@@ -1590,33 +1591,35 @@ function App() {
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
-                  </div>
+                  </div>}
 
-                  {/* Solutions Chart */}
-                  <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 ">
+                  {/* Reasons Chart (swapped with Solutions) */}
+                  {isKeyFindingsOpen && <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 ">
                     <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
-                      Top Solutions Suggested (by Citizens)
+                      Reasons for Waste Accumulation
                     </h2>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={solutionData} layout="vertical">
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis type="number" domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                        <YAxis
-                          dataKey="name"
-                          type="category"
-                          width={isSmallScreen ? 120 : 180}
-                          tick={{ fontSize: isSmallScreen ? 11 : 14 }}
-                        />
-                        <Tooltip formatter={(value) => `${value.toFixed(1)}%`} />
-                        <Bar dataKey="value" barSize={isSmallScreen ? 14 : 22}
-                          label={renderCustomBarLabel}>
-                          {solutionData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
+                    <div style={{ maxHeight: "320px", overflowY: "auto" }}>
+                      <ResponsiveContainer width="100%" height={Math.max(300, reasonsData.length * 40)}>
+                        <BarChart data={reasonsData} layout="vertical">
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis type="number" domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+                          <YAxis
+                            dataKey="name"
+                            type="category"
+                            width={isSmallScreen ? 120 : 180}
+                            tick={{ fontSize: isSmallScreen ? 11 : 14 }}
+                          />
+                          <Tooltip formatter={(value) => `${value.toFixed(1)}%`} />
+                          <Bar dataKey="value" barSize={isSmallScreen ? 14 : 22}
+                            label={renderCustomBarLabel}>
+                            {reasonsData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>}
                 </>
               ) : (
                 <div className="mt-6 p-10 bg-white rounded-xl shadow-2xl text-center border-4 border-yellow-400">
@@ -1715,11 +1718,16 @@ function App() {
                     </MapContainer>
                   </div>
 
-                  <h2 className="text-2xl font-bold mt-8 text-center text-black ">
-                    Key Findings from the GVP Survey
-                  </h2>
+                  <div className="flex justify-center items-center gap-2 mt-8">
+  <h2 className="text-2xl font-bold text-black">
+    Key Findings from the GVP Survey
+  </h2>
+  <button className="cursor-pointer" onClick={() => setIsKeyFindingsOpen(!isKeyFindingsOpen)}>
+    {isKeyFindingsOpen ? '▲' : '▼'}
+  </button>
+</div>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                  {isKeyFindingsOpen && <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
 
                     <div className="space-y-6">
                       {/* Problems */}
@@ -1727,45 +1735,47 @@ function App() {
                         <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
                           Top Problems Faced by Residents around GVP
                         </h2>
-                        <ResponsiveContainer width="100%" height={300}>
-                          <BarChart data={problemsData} layout="vertical"
-                            margin={{
-                              top: 10,
-                              right: isSmallScreen ? 50 : 90,
-                              left: 10,
-                              bottom: 10,
-                            }}
-                          >
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis
-                              type="number"
-                              domain={[0, 100]}
-                              tickFormatter={(v) => `${v}%`}
-                            />
-                            <YAxis
-                              dataKey="name"
-                              type="category"
-                              width={isSmallScreen ? 70 : 130}
-                              tick={{ fontSize: isSmallScreen ? 9 : 12 }}
-                              tickFormatter={(value) =>
-                                value.length > 18 ? value.slice(0, 18) + "…" : value
-                              }
-                            />
-                            <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
-                            <Bar
-                              dataKey="value"
-                              barSize={isSmallScreen ? 14 : 22}
-                              label={renderCustomBarLabel}
+                        <div style={{ maxHeight: "320px", overflowY: "auto" }}>
+                          <ResponsiveContainer width="100%" height={Math.max(300, problemsData.length * 40)}>
+                            <BarChart data={problemsData} layout="vertical"
+                              margin={{
+                                top: 10,
+                                right: isSmallScreen ? 50 : 90,
+                                left: 10,
+                                bottom: 10,
+                              }}
                             >
-                              {problemsData.map((_, i) => (
-                                <Cell
-                                  key={i}
-                                  fill={BAR_COLORS[i % BAR_COLORS.length]}
-                                />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis
+                                type="number"
+                                domain={[0, 100]}
+                                tickFormatter={(v) => `${v}%`}
+                              />
+                              <YAxis
+                                dataKey="name"
+                                type="category"
+                                width={isSmallScreen ? 70 : 130}
+                                tick={{ fontSize: isSmallScreen ? 9 : 12 }}
+                                tickFormatter={(value) =>
+                                  value.length > 18 ? value.slice(0, 18) + "…" : value
+                                }
+                              />
+                              <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
+                              <Bar
+                                dataKey="value"
+                                barSize={isSmallScreen ? 14 : 22}
+                                label={renderCustomBarLabel}
+                              >
+                                {problemsData.map((_, i) => (
+                                  <Cell
+                                    key={i}
+                                    fill={BAR_COLORS[i % BAR_COLORS.length]}
+                                  />
+                                ))}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
                       </div>
 
                       {/* Settings */}
@@ -1773,43 +1783,45 @@ function App() {
                         <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
                           Top Settings Where GVPs Are Found
                         </h2>
-                        <ResponsiveContainer width="100%" height={300}>
-                          <BarChart data={settingData}
-                            layout="vertical"
-                            margin={{
-                              top: 10,
-                              right: isSmallScreen ? 50 : 90,
-                              left: 10,
-                              bottom: 10,
-                            }}
-                          >
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis
-                              type="number"
-                              domain={[0, 100]}
-                              tickFormatter={(v) => `${v}%`}
-                            />
-                            <YAxis
-                              dataKey="name"
-                              type="category"
-                              width={isSmallScreen ? 90 : 160}
-                              tick={{ fontSize: isSmallScreen ? 10 : 14 }}
-                            />
-                            <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
-                            <Bar
-                              dataKey="value"
-                              barSize={isSmallScreen ? 14 : 22}
-                              label={renderCustomBarLabel}
+                        <div style={{ maxHeight: "320px", overflowY: "auto" }}>
+                          <ResponsiveContainer width="100%" height={Math.max(300, settingData.length * 40)}>
+                            <BarChart data={settingData}
+                              layout="vertical"
+                              margin={{
+                                top: 10,
+                                right: isSmallScreen ? 50 : 90,
+                                left: 10,
+                                bottom: 10,
+                              }}
                             >
-                              {settingData.map((_, i) => (
-                                <Cell
-                                  key={i}
-                                  fill={BAR_COLORS[i % BAR_COLORS.length]}
-                                />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis
+                                type="number"
+                                domain={[0, 100]}
+                                tickFormatter={(v) => `${v}%`}
+                              />
+                              <YAxis
+                                dataKey="name"
+                                type="category"
+                                width={isSmallScreen ? 90 : 160}
+                                tick={{ fontSize: isSmallScreen ? 10 : 14 }}
+                              />
+                              <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
+                              <Bar
+                                dataKey="value"
+                                barSize={isSmallScreen ? 14 : 22}
+                                label={renderCustomBarLabel}
+                              >
+                                {settingData.map((_, i) => (
+                                  <Cell
+                                    key={i}
+                                    fill={BAR_COLORS[i % BAR_COLORS.length]}
+                                  />
+                                ))}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
                       </div>
                     </div>
 
@@ -1819,88 +1831,92 @@ function App() {
                         <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
                           Who is Disposing the most Waste (as per Citizens)
                         </h2>
-                        <ResponsiveContainer width="100%" height={300}>
-                          <BarChart data={whoDisposeData}
-                            layout="vertical"
-                            margin={{
-                              top: 10,
-                              right: isSmallScreen ? 50 : 90,
-                              left: 10,
-                              bottom: 10,
-                            }}
-                          >
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis
-                              type="number"
-                              domain={[0, 100]}
-                              tickFormatter={(v) => `${v}%`}
-                            />
-                            <YAxis
-                              dataKey="name"
-                              type="category"
-                              width={isSmallScreen ? 90 : 160}
-                              tick={{ fontSize: isSmallScreen ? 10 : 14 }}
-                            />
-                            <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
-                            <Bar
-                              dataKey="value"
-                              barSize={isSmallScreen ? 14 : 22}
-                              label={renderCustomBarLabel}
+                        <div style={{ maxHeight: "320px", overflowY: "auto" }}>
+                          <ResponsiveContainer width="100%" height={Math.max(300, whoDisposeData.length * 40)}>
+                            <BarChart data={whoDisposeData}
+                              layout="vertical"
+                              margin={{
+                                top: 10,
+                                right: isSmallScreen ? 50 : 90,
+                                left: 10,
+                                bottom: 10,
+                              }}
                             >
-                              {whoDisposeData.map((_, i) => (
-                                <Cell
-                                  key={i}
-                                  fill={BAR_COLORS[i % BAR_COLORS.length]}
-                                />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis
+                                type="number"
+                                domain={[0, 100]}
+                                tickFormatter={(v) => `${v}%`}
+                              />
+                              <YAxis
+                                dataKey="name"
+                                type="category"
+                                width={isSmallScreen ? 90 : 160}
+                                tick={{ fontSize: isSmallScreen ? 10 : 14 }}
+                              />
+                              <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
+                              <Bar
+                                dataKey="value"
+                                barSize={isSmallScreen ? 14 : 22}
+                                label={renderCustomBarLabel}
+                              >
+                                {whoDisposeData.map((_, i) => (
+                                  <Cell
+                                    key={i}
+                                    fill={BAR_COLORS[i % BAR_COLORS.length]}
+                                  />
+                                ))}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
                       </div>
 
-                      {/* Reasons */}
+                      {/* Solutions Chart (swapped with Reasons) */}
                       <div className="bg-white px-6 py-5 rounded-lg shadow-lg border border-gray-200 overflow-x-auto">
                         <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
-                          Reasons for Waste Accumulation
+                          Top Solutions Suggested (by Citizens)
                         </h2>
-                        <ResponsiveContainer width="100%" height={300}>
-                          <BarChart
-                            data={reasonsData}
-                            layout="vertical"
-                            margin={{
-                              top: 10,
-                              right: isSmallScreen ? 50 : 90,
-                              left: 10,
-                              bottom: 10,
-                            }}
-                          >
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis
-                              type="number"
-                              domain={[0, 100]}
-                              tickFormatter={(v) => `${v}%`}
-                            />
-                            <YAxis
-                              dataKey="name"
-                              type="category"
-                              width={isSmallScreen ? 90 : 160}
-                              tick={{ fontSize: isSmallScreen ? 10 : 14 }}
-                            />
-                            <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
-                            <Bar
-                              dataKey="value"
-                              barSize={isSmallScreen ? 14 : 22}
-                              label={renderCustomBarLabel}
+                        <div style={{ maxHeight: "320px", overflowY: "auto" }}>
+                          <ResponsiveContainer width="100%" height={Math.max(300, solutionData.length * 40)}>
+                            <BarChart
+                              data={solutionData}
+                              layout="vertical"
+                              margin={{
+                                top: 10,
+                                right: isSmallScreen ? 50 : 90,
+                                left: 10,
+                                bottom: 10,
+                              }}
                             >
-                              {reasonsData.map((_, i) => (
-                                <Cell
-                                  key={i}
-                                  fill={BAR_COLORS[i % BAR_COLORS.length]}
-                                />
-                              ))}
-                            </Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis
+                                type="number"
+                                domain={[0, 100]}
+                                tickFormatter={(v) => `${v}%`}
+                              />
+                              <YAxis
+                                dataKey="name"
+                                type="category"
+                                width={isSmallScreen ? 90 : 160}
+                                tick={{ fontSize: isSmallScreen ? 10 : 14 }}
+                              />
+                              <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
+                              <Bar
+                                dataKey="value"
+                                barSize={isSmallScreen ? 14 : 22}
+                                label={renderCustomBarLabel}
+                              >
+                                {solutionData.map((_, i) => (
+                                  <Cell
+                                    key={i}
+                                    fill={BAR_COLORS[i % BAR_COLORS.length]}
+                                  />
+                                ))}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
                       </div>
                     </div>
 
@@ -1916,7 +1932,7 @@ function App() {
                       </a>
                     </footer>
 
-                  </div>
+                  </div>}
                 </>
               ) : (
                 <div className="hidden lg:block w-full h-full">
