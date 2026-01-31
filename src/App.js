@@ -1258,7 +1258,7 @@ function App() {
   const [selectedCity, setSelectedCity] = useState("Nagpur");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isKeyFindingsOpen, setIsKeyFindingsOpen] = useState(true);
+  const [isKeyFindingsOpen, setIsKeyFindingsOpen] = useState(false);
 
   const isSmallScreen = useMediaQuery({ query: "(max-width: 768px)" });
 
@@ -1417,22 +1417,44 @@ function App() {
     setSelectedRowIndex(null);
   }, [selectedWards, normalizedMergedData]);
 
+  useEffect(() => {
+    if (mapInstance && filteredDataForCards.length > 0) {
+      const validPositions = filteredDataForCards
+        .filter(row => row["_Record_the_location_of_GVP_latitude"] && row["_Record_the_location_of_GVP_longitude"])
+        .map(row => {
+          const lat = Number(row["_Record_the_location_of_GVP_latitude"]);
+          const lng = Number(row["_Record_the_location_of_GVP_longitude"]);
+          return !Number.isNaN(lat) && !Number.isNaN(lng) ? [lat, lng] : null;
+        })
+        .filter(pos => pos !== null);
+
+      if (validPositions.length > 0) {
+        if (validPositions.length === 1) {
+          mapInstance.setView(validPositions[0], 15);
+        } else {
+          const bounds = L.latLngBounds(validPositions);
+          mapInstance.fitBounds(bounds);
+        }
+      }
+    }
+  }, [mapInstance, filteredDataForCards]);
+
   return (
     <div className="p-4 sm:p-6 bg-gray-100 min-h-screen font-sans">
       {/* Header Section */}
       <div className="text-center mb-6">
-  <div className="flex justify-center items-center gap-3 mb-2">
-    <img
-  src={Mainicon}
-  alt="Mainicon Logo"
-  className="h-10 w-auto"
-  
-/>
+        <div className="flex justify-center items-center gap-3 mb-2">
+          <img
+            src={Mainicon}
+            alt="Mainicon Logo"
+            className="h-10 w-auto"
+          
+          />
 
-    <h1 className="text-3xl font-bold text-gray-800">
-      Bharat Garbage Tracker
-    </h1>
-  </div>
+          <h1 className="text-3xl font-bold text-gray-800">
+            Bharat Garbage Tracker
+          </h1>
+        </div>
         
         {/* Menu Bar - Always Visible */}
         <nav className="flex justify-center space-x-8 mt-4 border-b border-gray-200 pb-2">
@@ -1471,263 +1493,275 @@ function App() {
         <Route path="/partners" element={<Partners />} />
         <Route path="/impact" element={<Impact />} />
         <Route path="/" element={
-          <div className="flex flex-col lg:flex-row gap-6 mt-6">
-            {/* LEFT COLUMN */}
-            <div className="w-full lg:w-[460px] space-y-6">
+          <>
+            <div className="flex flex-col lg:flex-row gap-6 mt-6">
+              {/* LEFT COLUMN */}
+              <div className="w-full lg:w-[460px] space-y-6">
 
-              <CitySlicer selectedCity={selectedCity} setSelectedCity={setSelectedCity} />
+                <CitySlicer selectedCity={selectedCity} setSelectedCity={setSelectedCity} />
 
-              {isLoading ? (
-                <div className="mt-6 p-10 bg-white rounded-xl shadow-2xl text-center">
-                  <p className="text-2xl font-bold text-gray-800">Loading data...</p>
-                </div>
-              ) : error ? (
-                <div className="mt-6 p-10 bg-white rounded-xl shadow-2xl text-center border-4 border-red-400">
-                  <p className="text-2xl font-bold text-red-600">Error: {error}</p>
-                </div>
-              ) : isNagpurSelected ? (
-                <>
-                  {/* Summary Cards */}
-                  <div className="flex flex-row flex-nowrap gap-4 overflow-x-auto pb-2 ">
-                    <div className={`bg-white p-4 rounded-lg shadow-lg text-center border-b-4 border-yellow-500 flex flex-col justify-center ${CARD_SIZE_CLASSES}`}>
-                      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                        Total Garbage Points
-                      </h2>
-                      <p className="text-5xl font-extrabold mt-1 text-gray-900">
-                        {totalGarbagePoints}
-                      </p>
-                    </div>
-
-                    <div className={`bg-white p-4 rounded-lg shadow-lg text-center border-b-4 border-green-500 flex flex-col justify-center ${CARD_SIZE_CLASSES}`}>
-                      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-                        GVP Waste Volume (Hath Gadi)
-                      </h2>
-                      <p className="text-5xl font-extrabold mt-1 text-gray-900">
-                        {Math.round(totalHathGadiVolume)}
-                      </p>
-                    </div>
+                {isLoading ? (
+                  <div className="mt-6 p-10 bg-white rounded-xl shadow-2xl text-center">
+                    <p className="text-2xl font-bold text-gray-800">Loading data...</p>
                   </div>
+                ) : error ? (
+                  <div className="mt-6 p-10 bg-white rounded-xl shadow-2xl text-center border-4 border-red-400">
+                    <p className="text-2xl font-bold text-red-600">Error: {error}</p>
+                  </div>
+                ) : isNagpurSelected ? (
+                  <>
+                    {/* Summary Cards */}
+                    <div className="flex flex-row flex-nowrap gap-4 overflow-x-auto pb-2 ">
+                      <div className={`bg-white p-4 rounded-lg shadow-lg text-center border-b-4 border-yellow-500 flex flex-col justify-center ${CARD_SIZE_CLASSES}`}>
+                        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                          Total Garbage Points
+                        </h2>
+                        <p className="text-5xl font-extrabold mt-1 text-gray-900">
+                          {totalGarbagePoints}
+                        </p>
+                      </div>
 
-                  {/* Ward Selector */}
-                  <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 relative ">
-                    <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">Wards</h2>
-                    <div className="relative">
-                      <button
-                        onClick={toggleDropdown}
-                        className="w-full p-2 border rounded-lg shadow-sm bg-white text-left focus:outline-none focus:ring-2 focus:ring-yellow-500 flex justify-between items-center"
-                      >
-                        {selectedWards.length > 0
-                          ? `${selectedWards.length} ward(s) selected`
-                          : "Select Wards"}
-                        <span className="ml-2">▼</span>
-                      </button>
-                      {isDropdownOpen && (
-                        <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                          <label className="flex items-center space-x-2 p-2 hover:bg-gray-100 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={selectedWards.length === uniqueWards.length}
-                              onChange={handleSelectAll}
-                              className="form-checkbox h-4 w-4 text-yellow-500"
-                            />
-                            <span className="text-sm">All</span>
-                          </label>
-                          {uniqueWards.map((ward) => (
-                            <label key={ward} className="flex items-center space-x-2 p-2 hover:bg-gray-100 cursor-pointer">
+                      <div className={`bg-white p-4 rounded-lg shadow-lg text-center border-b-4 border-green-500 flex flex-col justify-center ${CARD_SIZE_CLASSES}`}>
+                        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                          GVP Waste Volume (Hath Gadi)
+                        </h2>
+                        <p className="text-5xl font-extrabold mt-1 text-gray-900">
+                          {Math.round(totalHathGadiVolume)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Ward Selector */}
+                    <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 relative ">
+                      <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">Wards</h2>
+                      <div className="relative">
+                        <button
+                          onClick={toggleDropdown}
+                          className="w-full p-2 border rounded-lg shadow-sm bg-white text-left focus:outline-none focus:ring-2 focus:ring-yellow-500 flex justify-between items-center"
+                        >
+                          {selectedWards.length > 0
+                            ? `${selectedWards.length} ward(s) selected`
+                            : "Select Wards"}
+                          <span className="ml-2">▼</span>
+                        </button>
+                        {isDropdownOpen && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                            <label className="flex items-center space-x-2 p-2 hover:bg-gray-100 cursor-pointer">
                               <input
                                 type="checkbox"
-                                value={ward}
-                                checked={selectedWards.includes(ward)}
-                                onChange={handleWardChange}
+                                checked={selectedWards.length === uniqueWards.length}
+                                onChange={handleSelectAll}
                                 className="form-checkbox h-4 w-4 text-yellow-500"
                               />
-                              <span className="text-sm">{ward}</span>
+                              <span className="text-sm">All</span>
                             </label>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Table */}
-                  <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200">
-                    <DataTable
-                      data={selectedRow ? [selectedRow] : filteredDataForCards}
-                      onRowClick={handleRowClick}
-                      selectedRowIndex={selectedRowIndex}
-                    />
-                  </div>
-
-                  {/* Pie Chart */}
-                  {isKeyFindingsOpen && <div className="bg-white rounded-lg shadow p-3 w-full">
-                    <h3 className="text-center text-sm sm:text-base font-semibold mb-2">
-                      Breakdown by Waste Type
-                    </h3>
-
-                    <div className="w-full h-72 sm:h-64 md:h-72 lg:h-80">
-                      <ResponsiveContainer width="100%" height={300}>
-                        <PieChart>
-                          <Pie
-                            data={pieData}
-                            dataKey="value"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={isSmallScreen ? 60 : 90}
-                            innerRadius={isSmallScreen ? 30 : 60}
-                            paddingAngle={2}
-                            label={renderCustomizedLabel(isSmallScreen)}
-                            labelLine={true}
-                            minAngle={5}
-                          >
-                            {pieData.map((entry, index) => (
-                              <Cell
-                                key={`cell-${index}`}
-                                fill={COLORS[index % COLORS.length]}
-                              />
+                            {uniqueWards.map((ward) => (
+                              <label key={ward} className="flex items-center space-x-2 p-2 hover:bg-gray-100 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  value={ward}
+                                  checked={selectedWards.includes(ward)}
+                                  onChange={handleWardChange}
+                                  className="form-checkbox h-4 w-4 text-yellow-500"
+                                />
+                                <span className="text-sm">{ward}</span>
+                              </label>
                             ))}
-                          </Pie>
-                          <Tooltip />
-                        </PieChart>
-                      </ResponsiveContainer>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>}
 
-                  {/* Reasons Chart (swapped with Solutions) */}
-                  {isKeyFindingsOpen && <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 ">
-                    <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
-                      Reasons for Waste Accumulation
-                    </h2>
-                    <div style={{ maxHeight: "320px", overflowY: "auto" }}>
-                      <ResponsiveContainer width="100%" height={Math.max(300, reasonsData.length * 40)}>
-                        <BarChart data={reasonsData} layout="vertical">
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis type="number" domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                          <YAxis
-                            dataKey="name"
-                            type="category"
-                            width={isSmallScreen ? 120 : 180}
-                            tick={{ fontSize: isSmallScreen ? 11 : 14 }}
-                          />
-                          <Tooltip formatter={(value) => `${value.toFixed(1)}%`} />
-                          <Bar dataKey="value" barSize={isSmallScreen ? 14 : 22}
-                            label={renderCustomBarLabel}>
-                            {reasonsData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
+                    {/* Table */}
+                    <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200">
+                      <DataTable
+                        data={selectedRow ? [selectedRow] : filteredDataForCards}
+                        onRowClick={handleRowClick}
+                        selectedRowIndex={selectedRowIndex}
+                      />
                     </div>
-                  </div>}
-                </>
-              ) : (
-                <div className="mt-6 p-10 bg-white rounded-xl shadow-2xl text-center border-4 border-yellow-400">
-                  <p className="text-4xl font-extrabold text-gray-800">
-                    Coming Soon!
-                  </p>
-                  <p className="mt-4 text-xl text-gray-600">
-                    Data and visualization for **{selectedCity}** will be available in a future update.
-                  </p>
-                  <button
-                    onClick={() => setSelectedCity("Nagpur")}
-                    className="mt-8 px-6 py-3 bg-yellow-500 text-white font-semibold text-lg rounded-lg shadow-md hover:bg-yellow-600 transition duration-300"
-                  >
-                    Go back to Nagpur Dashboard
+
+                  </>
+                ) : (
+                  <div className="mt-6 p-10 bg-white rounded-xl shadow-2xl text-center border-4 border-yellow-400">
+                    <p className="text-4xl font-extrabold text-gray-800">
+                      Coming Soon!
+                    </p>
+                    <p className="mt-4 text-xl text-gray-600">
+                      Data and visualization for **{selectedCity}** will be available in a future update.
+                    </p>
+                    <button
+                      onClick={() => setSelectedCity("Nagpur")}
+                      className="mt-8 px-6 py-3 bg-yellow-500 text-white font-semibold text-lg rounded-lg shadow-md hover:bg-yellow-600 transition duration-300"
+                    >
+                      Go back to Nagpur Dashboard
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* RIGHT COLUMN - Map + Key Findings */}
+              <div className="flex-1 lg:space-y-6">
+
+                {isNagpurSelected ? (
+                  <>
+                    {/* Map */}
+                    <div className="h-[750px] lg:h-[900px]">
+                      <MapContainer
+                        whenCreated={setMapInstance}
+                        center={mapCenter}
+                        zoom={13}
+                        className="w-full h-full rounded-lg shadow-lg border border-gray-200"
+                      >
+                        <TileLayer
+                          attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        />
+                        {(selectedRow ? [selectedRow] : filteredDataForCards)
+                          .filter((row) => row["_Record_the_location_of_GVP_latitude"] && row["_Record_the_location_of_GVP_longitude"])
+                          .map((row, idx) => {
+                            const lat = Number(row["_Record_the_location_of_GVP_latitude"]);
+                            const lng = Number(row["_Record_the_location_of_GVP_longitude"]);
+                            const ward = row["GVP Ward"] || "";
+                            const stableKey = `${ward}-${lat}-${lng}-${idx}`;
+
+                            const colorName = WARD_COLOR_MAP[ward] || "blue";
+
+                            const customIcon = new L.Icon({
+                              iconRetinaUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${colorName}.png`,
+                              iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${colorName}.png`,
+                              shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+                              iconSize: [25, 41],
+                              iconAnchor: [12, 41],
+                              popupAnchor: [1, -34],
+                              shadowSize: [41, 41],
+                            });
+
+                            return (
+                              <Marker
+                                key={stableKey}
+                                position={[lat, lng]}
+                                icon={customIcon}
+                                eventHandlers={{
+                                  click: () => handleMarkerClick(row),
+                                }}
+                              >
+                                <LeafletTooltip
+                                  direction="auto"
+                                  offset={[0, -20]}
+                                  opacity={1}
+                                  sticky={true}
+                                  permanent={false}
+                                  interactive={true}
+                                  className="rounded shadow-lg p-0 custom-tooltip"
+                                >
+                                  <div
+                                    style={{
+                                      maxWidth: 480,
+                                      minWidth: 400,
+                                      overflow: "visible",
+                                      whiteSpace: "normal",
+                                      padding: 10,
+                                      background: "white",
+                                      borderRadius: 10,
+                                      boxShadow: "0 8px 22px rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.08)",
+                                    }}
+                                  >
+                                    <div style={{ marginBottom: 6, fontWeight: 700 }}>
+                                      Garbage Point Info
+                                    </div>
+                                    <TooltipContent row={row} />
+                                  </div>
+                                </LeafletTooltip>
+                              </Marker>
+                            );
+                          })}
+                      </MapContainer>
+                    </div>
+
+                  </>
+                ) : (
+                  <div className="hidden lg:block w-full h-full">
+                  </div>
+                )}
+              </div>
+            </div>
+            {isNagpurSelected ? (
+              <>
+                <div className="flex justify-center items-center gap-2 mt-8">
+                  <h2 className="text-2xl font-bold text-black">
+                    Key Findings from the GVP Survey
+                  </h2>
+                  <button className="cursor-pointer" onClick={() => setIsKeyFindingsOpen(!isKeyFindingsOpen)}>
+                    {isKeyFindingsOpen ? '▲' : '▼'}
                   </button>
                 </div>
-              )}
-            </div>
 
-            {/* RIGHT COLUMN - Map + Key Findings */}
-            <div className="flex-1 lg:space-y-6">
+                {isKeyFindingsOpen && <div className="w-full space-y-6 mt-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-white rounded-lg shadow p-3 w-full">
+                      <h3 className="text-center text-sm sm:text-base font-semibold mb-2">
+                        Breakdown by Waste Type
+                      </h3>
 
-              {isNagpurSelected ? (
-                <>
-                  {/* Map */}
-                  <div className="h-[700px] lg:h-[850px]">
-                    <MapContainer
-                      whenCreated={setMapInstance}
-                      center={mapCenter}
-                      zoom={13}
-                      className="w-full h-full rounded-lg shadow-lg border border-gray-200"
-                    >
-                      <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      />
-                      {(selectedRow ? [selectedRow] : filteredDataForCards)
-                        .filter((row) => row["_Record_the_location_of_GVP_latitude"] && row["_Record_the_location_of_GVP_longitude"])
-                        .map((row, idx) => {
-                          const lat = Number(row["_Record_the_location_of_GVP_latitude"]);
-                          const lng = Number(row["_Record_the_location_of_GVP_longitude"]);
-                          const ward = row["GVP Ward"] || "";
-                          const stableKey = `${ward}-${lat}-${lng}-${idx}`;
-
-                          const colorName = WARD_COLOR_MAP[ward] || "blue";
-
-                          const customIcon = new L.Icon({
-                            iconRetinaUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${colorName}.png`,
-                            iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${colorName}.png`,
-                            shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
-                            iconSize: [25, 41],
-                            iconAnchor: [12, 41],
-                            popupAnchor: [1, -34],
-                            shadowSize: [41, 41],
-                          });
-
-                          return (
-                            <Marker
-                              key={stableKey}
-                              position={[lat, lng]}
-                              icon={customIcon}
-                              eventHandlers={{
-                                click: () => handleMarkerClick(row),
-                              }}
+                      <div className="w-full h-72 sm:h-64 md:h-72 lg:h-80">
+                        <ResponsiveContainer width="100%" height={300}>
+                          <PieChart>
+                            <Pie
+                              data={pieData}
+                              dataKey="value"
+                              nameKey="name"
+                              cx="50%"
+                              cy="50%"
+                              outerRadius={isSmallScreen ? 60 : 90}
+                              innerRadius={isSmallScreen ? 30 : 60}
+                              paddingAngle={2}
+                              label={renderCustomizedLabel(isSmallScreen)}
+                              labelLine={true}
+                              minAngle={5}
                             >
-                              <LeafletTooltip
-                                direction="auto"
-                                offset={[0, -20]}
-                                opacity={1}
-                                sticky={true}
-                                permanent={false}
-                                interactive={true}
-                                className="rounded shadow-lg p-0 custom-tooltip"
-                              >
-                                <div
-                                  style={{
-                                    maxWidth: 480,
-                                    minWidth: 400,
-                                    overflow: "visible",
-                                    whiteSpace: "normal",
-                                    padding: 10,
-                                    background: "white",
-                                    borderRadius: 10,
-                                    boxShadow: "0 8px 22px rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.08)",
-                                  }}
-                                >
-                                  <div style={{ marginBottom: 6, fontWeight: 700 }}>
-                                    Garbage Point Info
-                                  </div>
-                                  <TooltipContent row={row} />
-                                </div>
-                              </LeafletTooltip>
-                            </Marker>
-                          );
-                        })}
-                    </MapContainer>
+                              {pieData.map((entry, index) => (
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={COLORS[index % COLORS.length]}
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 ">
+                      <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
+                        Reasons for Waste Accumulation
+                      </h2>
+                      <div style={{ maxHeight: "320px", overflowY: "auto" }}>
+                        <ResponsiveContainer width="100%" height={Math.max(300, reasonsData.length * 40)}>
+                          <BarChart data={reasonsData} layout="vertical">
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis type="number" domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+                            <YAxis
+                              dataKey="name"
+                              type="category"
+                              width={isSmallScreen ? 120 : 180}
+                              tick={{ fontSize: isSmallScreen ? 11 : 14 }}
+                            />
+                            <Tooltip formatter={(value) => `${value.toFixed(1)}%`} />
+                            <Bar dataKey="value" barSize={isSmallScreen ? 14 : 22}
+                              label={renderCustomBarLabel}>
+                              {reasonsData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="flex justify-center items-center gap-2 mt-8">
-  <h2 className="text-2xl font-bold text-black">
-    Key Findings from the GVP Survey
-  </h2>
-  <button className="cursor-pointer" onClick={() => setIsKeyFindingsOpen(!isKeyFindingsOpen)}>
-    {isKeyFindingsOpen ? '▲' : '▼'}
-  </button>
-</div>
-
-                  {isKeyFindingsOpen && <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
                     <div className="space-y-6">
                       {/* Problems */}
@@ -1877,7 +1911,7 @@ function App() {
                         <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
                           Top Solutions Suggested (by Citizens)
                         </h2>
-                        <div style={{ maxHeight: "320px", overflowY: "auto" }}>
+                        <div style={{ maxHeight: "300px", overflowY: "auto" }}>
                           <ResponsiveContainer width="100%" height={Math.max(300, solutionData.length * 40)}>
                             <BarChart
                               data={solutionData}
@@ -1920,26 +1954,27 @@ function App() {
                       </div>
                     </div>
 
-                    {/* Footer */}
-                    <footer className="mt-12 pb-4 text-center">
-                      <a
-                        href="https://themetropolitaninstitute.com/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xl font-bold text-gray-600 hover:text-blue-400 transition duration-300"
-                      >
-                        Developed by The Metropolitan Institute
-                      </a>
-                    </footer>
+                  </div>
 
-                  </div>}
-                </>
-              ) : (
-                <div className="hidden lg:block w-full h-full">
-                </div>
-              )}
-            </div>
-          </div>
+                  {/* Footer */}
+                  <footer className="mt-12 pb-4 text-center">
+                    <a
+                      href="https://themetropolitaninstitute.com/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xl font-bold text-gray-600 hover:text-blue-400 transition duration-300"
+                    >
+                      Developed by The Metropolitan Institute
+                    </a>
+                  </footer>
+
+                </div>}
+              </>
+            ) : (
+              <div className="hidden lg:block w-full h-full">
+              </div>
+            )}
+          </>
         } />
       </Routes>
     </div>
