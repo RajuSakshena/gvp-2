@@ -1689,12 +1689,12 @@ function App() {
             {isNagpurSelected ? (
               <>
                 <div className="flex justify-center items-center gap-2 mt-8">
-                  <h2 className="text-2xl font-bold text-black">
+                  <h2 className="text-2xl font-bold text-black cursor-pointer" onClick={() => setIsKeyFindingsOpen(!isKeyFindingsOpen)}>
                     Key Findings from the GVP Survey
                   </h2>
-                  <button className="cursor-pointer" onClick={() => setIsKeyFindingsOpen(!isKeyFindingsOpen)}>
+                  <span className="pointer-events-none">
                     {isKeyFindingsOpen ? '▲' : '▼'}
-                  </button>
+                  </span>
                 </div>
 
                 {isKeyFindingsOpen && <div className="w-full space-y-6 mt-6">
