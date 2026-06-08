@@ -1226,7 +1226,7 @@ const deduplicate = (rows) => {
 };
 
 // City Slicer Component
-const CitySlicer = ({ selectedCity, setSelectedCity }) => {
+const CitySlicer = ({ selectedCity, setSelectedCity, selectedPuneWard, setSelectedPuneWard }) => {
   const cities = ["Nagpur", "Pune", "Bangalore", "Andman and Nicobar Island"];
   return (
     <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 w-full">
@@ -1235,7 +1235,10 @@ const CitySlicer = ({ selectedCity, setSelectedCity }) => {
       </h2>
       <select
         value={selectedCity}
-        onChange={(e) => setSelectedCity(e.target.value)}
+        onChange={(e) => {
+          setSelectedCity(e.target.value);
+          setSelectedPuneWard("");
+        }}
         className="w-full p-2 border border-gray-300 rounded-lg shadow-sm bg-white text-base focus:outline-none focus:ring-2 focus:ring-yellow-500"
       >
         {cities.map((city) => (
@@ -1244,6 +1247,19 @@ const CitySlicer = ({ selectedCity, setSelectedCity }) => {
           </option>
         ))}
       </select>
+
+      {selectedCity === "Pune" && (
+        <div className="mt-3">
+          <select
+            value={selectedPuneWard}
+            onChange={(e) => setSelectedPuneWard(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded-lg shadow-sm bg-white text-base focus:outline-none focus:ring-2 focus:ring-yellow-500"
+          >
+            <option value="">-- Select Ward --</option>
+            <option value="8">Ward No. 8</option>
+          </select>
+        </div>
+      )}
     </div>
   );
 };
@@ -1259,6 +1275,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isKeyFindingsOpen, setIsKeyFindingsOpen] = useState(false);
+  const [selectedPuneWard, setSelectedPuneWard] = useState("");
 
   const isSmallScreen = useMediaQuery({ query: "(max-width: 768px)" });
 
@@ -1396,7 +1413,7 @@ function App() {
     setIsDropdownOpen(!isDropdownOpen);
   };
 
-  const isNagpurSelected = selectedCity === "Nagpur";
+  const isNagpurSelected = selectedCity === "Nagpur" || (selectedCity === "Pune" && selectedPuneWard === "8");
 
   useEffect(() => {
     if (mapInstance && selectedRow) {
@@ -1498,7 +1515,7 @@ function App() {
               {/* LEFT COLUMN */}
               <div className="w-full lg:w-[460px] space-y-6">
 
-                <CitySlicer selectedCity={selectedCity} setSelectedCity={setSelectedCity} />
+                <CitySlicer selectedCity={selectedCity} setSelectedCity={setSelectedCity} selectedPuneWard={selectedPuneWard} setSelectedPuneWard={setSelectedPuneWard} />
 
                 {isLoading ? (
                   <div className="mt-6 p-10 bg-white rounded-xl shadow-2xl text-center">
