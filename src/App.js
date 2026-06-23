@@ -1228,7 +1228,7 @@ const deduplicate = (rows) => {
 };
 
 // MapController - updates map center/bounds reactively (fixes whenCreated deprecation)
-const MapController = ({ center, filteredDataForCards, selectedRow, onMapReady }) => {
+const MapController = ({ center, filteredDataForCards, selectedRow, onMapReady, isAllCities }) => {
   const map = useMap();
 
   useEffect(() => {
@@ -1243,6 +1243,8 @@ const MapController = ({ center, filteredDataForCards, selectedRow, onMapReady }
     // be treated as valid. This filters out bad/incorrect lat-lng entries in the
     // data (e.g. a point accidentally recorded near Indore while "Nagpur" is selected)
     // so they don't force the map to zoom out far beyond the selected city.
+    // When "All" cities is selected, we skip this distance filter entirely so that
+    // markers from both Nagpur and Pune (and any other city) are all visible.
     const MAX_DISTANCE_FROM_CENTER_METERS = 50000; // 50km
 
     const validPositions = dataToUse
@@ -1255,6 +1257,7 @@ const MapController = ({ center, filteredDataForCards, selectedRow, onMapReady }
       .filter(pos => pos !== null)
       .filter(pos => {
         if (selectedRow) return true; // always trust an explicitly selected row
+        if (isAllCities) return true; // show all cities without distance filtering
         try {
           return cityCenterLatLng.distanceTo(L.latLng(pos[0], pos[1])) <= MAX_DISTANCE_FROM_CENTER_METERS;
         } catch {
@@ -1266,12 +1269,14 @@ const MapController = ({ center, filteredDataForCards, selectedRow, onMapReady }
       map.setView(validPositions[0], 15);
     } else if (validPositions.length > 1) {
       const bounds = L.latLngBounds(validPositions);
-      map.fitBounds(bounds, { padding: [60, 60], maxZoom: 13 });
+      // When showing all cities, allow zooming out further (maxZoom: 7) so both
+      // Nagpur and Pune markers are visible at once; otherwise keep city-level zoom.
+      map.fitBounds(bounds, { padding: [60, 60], maxZoom: isAllCities ? 7 : 13 });
     } else {
       // No valid points - fly to city center
       map.setView(center, 13);
     }
-  }, [map, filteredDataForCards, selectedRow, center]);
+  }, [map, filteredDataForCards, selectedRow, center, isAllCities]);
 
   return null;
 };
@@ -1690,6 +1695,7 @@ function App() {
                           filteredDataForCards={filteredDataForCards}
                           selectedRow={selectedRow}
                           onMapReady={handleMapReady}
+                          isAllCities={isAllSelected}
                         />
                         {(selectedRow ? [selectedRow] : filteredDataForCards)
                           .filter((row) => row["_Record_the_location_of_GVP_latitude"] && row["_Record_the_location_of_GVP_longitude"])
