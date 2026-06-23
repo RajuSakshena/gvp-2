@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo } from "react";
-import { MapContainer, TileLayer, Marker, Tooltip as LeafletTooltip } from "react-leaflet";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import { MapContainer, TileLayer, Marker, Tooltip as LeafletTooltip, useMap } from "react-leaflet";
 import { Routes, Route, Link } from "react-router-dom";
 import "react-image-gallery/styles/css/image-gallery.css";
 import About from "./About";
@@ -857,8 +857,8 @@ const wasteReasonsMap = {
 const normalizeRow = (row) => {
   const norm = { ...row };
 
-  // Ward
-  const wardValue = row["GVP Ward"] || row["Select_the_ward"] || row["GVP_Ward"] || row.ward || row.ward_no || row.ward_number || null;
+  // Ward - support both Nagpur and Pune ward fields
+  const wardValue = row["GVP Ward"] || row["Select_the_ward"] || row["GVP_Ward"] || row.ward || row.ward_no || row.ward_number || row["Mention_ward_number_name_Pune"] || null;
   if (wardValue !== null) {
     norm["GVP Ward"] = Number(wardValue);
     norm.cluster_id = norm["GVP Ward"];
@@ -995,7 +995,9 @@ const normalizeRow = (row) => {
   nearestLocation = String(nearestLocation).trim().replace(/[\r\n]+/g, " ");
   norm["Nearest Location"] = nearestLocation || null;  // Set to null if empty, table handles "N/A"
 
-  norm.city = row.city || row.City || "Nagpur";
+  // Detect city: prefer explicit city fields, then Choose_City from API
+  const chooseCity = (row["Choose_City"] || "").toLowerCase().trim();
+  norm.city = row.city || row.City || (chooseCity === "pune" ? "Pune" : (chooseCity === "nagpur" ? "Nagpur" : "Nagpur"));
 
   // === FIX for Who Dispose columns ===
   norm["Who Dispose1"] = row["Who Dispose1"] || row["Who_Dispose1"] || "N/A";
@@ -1225,9 +1227,58 @@ const deduplicate = (rows) => {
   return unique;
 };
 
+// MapController - updates map center/bounds reactively (fixes whenCreated deprecation)
+const MapController = ({ center, filteredDataForCards, selectedRow, onMapReady }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    onMapReady(map);
+  }, [map, onMapReady]);
+
+  useEffect(() => {
+    if (!map) return;
+    const dataToUse = selectedRow ? [selectedRow] : filteredDataForCards;
+    const cityCenterLatLng = L.latLng(center[0], center[1]);
+    // Max distance (in meters) a GVP point can be from the city center and still
+    // be treated as valid. This filters out bad/incorrect lat-lng entries in the
+    // data (e.g. a point accidentally recorded near Indore while "Nagpur" is selected)
+    // so they don't force the map to zoom out far beyond the selected city.
+    const MAX_DISTANCE_FROM_CENTER_METERS = 50000; // 50km
+
+    const validPositions = dataToUse
+      .filter(row => row["_Record_the_location_of_GVP_latitude"] && row["_Record_the_location_of_GVP_longitude"])
+      .map(row => {
+        const lat = Number(row["_Record_the_location_of_GVP_latitude"]);
+        const lng = Number(row["_Record_the_location_of_GVP_longitude"]);
+        return !Number.isNaN(lat) && !Number.isNaN(lng) ? [lat, lng] : null;
+      })
+      .filter(pos => pos !== null)
+      .filter(pos => {
+        if (selectedRow) return true; // always trust an explicitly selected row
+        try {
+          return cityCenterLatLng.distanceTo(L.latLng(pos[0], pos[1])) <= MAX_DISTANCE_FROM_CENTER_METERS;
+        } catch {
+          return true;
+        }
+      });
+
+    if (validPositions.length === 1) {
+      map.setView(validPositions[0], 15);
+    } else if (validPositions.length > 1) {
+      const bounds = L.latLngBounds(validPositions);
+      map.fitBounds(bounds, { padding: [60, 60], maxZoom: 13 });
+    } else {
+      // No valid points - fly to city center
+      map.setView(center, 13);
+    }
+  }, [map, filteredDataForCards, selectedRow, center]);
+
+  return null;
+};
+
 // City Slicer Component
 const CitySlicer = ({ selectedCity, setSelectedCity }) => {
-  const cities = ["Nagpur", "Pune", "Bangalore", "Andman and Nicobar Island"];
+  const cities = ["All", "Nagpur", "Pune", "Bangalore", "Andman and Nicobar Island"];
   return (
     <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 w-full">
       <h2 className="text-lg font-semibold text-gray-700 mb-4 text-center">
@@ -1253,12 +1304,16 @@ function App() {
   const [normalizedMergedData, setNormalizedMergedData] = useState([]);
   const [selectedWards, setSelectedWards] = useState([]);
   const [selectedRowIndex, setSelectedRowIndex] = useState(null);
-  const [mapInstance, setMapInstance] = useState(null);
+  const mapInstanceRef = useRef(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedCity, setSelectedCity] = useState("Nagpur");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isKeyFindingsOpen, setIsKeyFindingsOpen] = useState(false);
+
+  const handleMapReady = useCallback((map) => {
+    mapInstanceRef.current = map;
+  }, []);
 
   const isSmallScreen = useMediaQuery({ query: "(max-width: 768px)" });
 
@@ -1294,8 +1349,10 @@ function App() {
   }, []);
 
   const uniqueWards = useMemo(() => {
+    const cityLower = selectedCity.toLowerCase().trim();
     const wardsSet = new Set(
       normalizedMergedData
+        .filter((row) => cityLower === "all" || (row.city || "Nagpur").toLowerCase().trim() === cityLower)
         .map((row) =>
           row["GVP Ward"] !== null && row["GVP Ward"] !== undefined
             ? String(row["GVP Ward"])
@@ -1304,14 +1361,15 @@ function App() {
         .filter(Boolean)
     );
     return Array.from(wardsSet).sort((a, b) => Number(a) - Number(b));
-  }, [normalizedMergedData]);
+  }, [normalizedMergedData, selectedCity]);
 
   const filteredData = useMemo(() => {
     return normalizedMergedData.filter((row) => {
       const rowCity = (row.city || "Nagpur").toLowerCase().trim();
       const selected = selectedCity.toLowerCase().trim();
+      const cityMatch = selected === "all" || rowCity === selected;
       const wardMatch = selectedWards.length === 0 || selectedWards.includes(String(row["GVP Ward"]));
-      return rowCity === selected && wardMatch;
+      return cityMatch && wardMatch;
     });
   }, [normalizedMergedData, selectedWards, selectedCity]);
 
@@ -1346,8 +1404,6 @@ function App() {
   const settingData = useMemo(() => calculateSettingData(filteredDataForCards), [filteredDataForCards]);
   const solutionData = useMemo(() => calculateSolutionData(filteredDataForCards), [filteredDataForCards]);
 
-  const mapCenter = [21.135, 79.085];
-
   const handleMarkerClick = (row) => {
     const keyOfRow = `${row["_Record_the_location_of_GVP_latitude"]}-${row["_Record_the_location_of_GVP_longitude"]}-${row["GVP Ward"]}`;
     const idx = filteredTableData.findIndex(
@@ -1360,12 +1416,12 @@ function App() {
       } else {
         setSelectedRowIndex(idx);
       }
-      if (mapInstance) {
+      if (mapInstanceRef.current) {
         const lat = Number(row["_Record_the_location_of_GVP_latitude"]);
         const lng = Number(row["_Record_the_location_of_GVP_longitude"]);
         if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
           try {
-            mapInstance.flyTo([lat, lng], 15, { animate: true, duration: 0.5 });
+            mapInstanceRef.current.flyTo([lat, lng], 15, { animate: true, duration: 0.5 });
           } catch (e) {}
         }
       }
@@ -1397,47 +1453,59 @@ function App() {
   };
 
   const isNagpurSelected = selectedCity === "Nagpur";
+  const isPuneSelected = selectedCity === "Pune";
+  const isAllSelected = selectedCity === "All";
+  const isDashboardCity = isNagpurSelected || isPuneSelected || isAllSelected;
+
+  // Dynamic map center based on city
+  // "All" uses a center between Nagpur and Pune, zoomed out enough to show both
+  const mapCenter = isPuneSelected ? [18.5204, 73.8567] : isAllSelected ? [19.8, 76.5] : [21.135, 79.085];
 
   useEffect(() => {
-    if (mapInstance && selectedRow) {
+    if (mapInstanceRef.current && selectedRow) {
       const lat = Number(selectedRow["_Record_the_location_of_GVP_latitude"]);
       const lng = Number(selectedRow["_Record_the_location_of_GVP_longitude"]);
       if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
         try {
-          mapInstance.flyTo([lat, lng], Math.max(mapInstance.getZoom(), 15), {
+          mapInstanceRef.current.flyTo([lat, lng], Math.max(mapInstanceRef.current.getZoom(), 15), {
             animate: true,
             duration: 0.6,
           });
         } catch (e) {}
       }
     }
-  }, [selectedRow, mapInstance]);
+  }, [selectedRow]);
 
   useEffect(() => {
     setSelectedRowIndex(null);
   }, [selectedWards, normalizedMergedData]);
 
+  // Auto-select Ward 8 when switching to Pune; clear selection for other cities
   useEffect(() => {
-    if (mapInstance && filteredDataForCards.length > 0) {
-      const validPositions = filteredDataForCards
-        .filter(row => row["_Record_the_location_of_GVP_latitude"] && row["_Record_the_location_of_GVP_longitude"])
-        .map(row => {
-          const lat = Number(row["_Record_the_location_of_GVP_latitude"]);
-          const lng = Number(row["_Record_the_location_of_GVP_longitude"]);
-          return !Number.isNaN(lat) && !Number.isNaN(lng) ? [lat, lng] : null;
-        })
-        .filter(pos => pos !== null);
-
-      if (validPositions.length > 0) {
-        if (validPositions.length === 1) {
-          mapInstance.setView(validPositions[0], 15);
-        } else {
-          const bounds = L.latLngBounds(validPositions);
-          mapInstance.fitBounds(bounds);
-        }
+    setSelectedRowIndex(null);
+    if (selectedCity === "Pune") {
+      const puneWards = Array.from(
+        new Set(
+          normalizedMergedData
+            .filter(r => (r.city || "").toLowerCase() === "pune")
+            .map(r => r["GVP Ward"] !== null && r["GVP Ward"] !== undefined ? String(r["GVP Ward"]) : null)
+            .filter(Boolean)
+        )
+      ).sort((a, b) => Number(a) - Number(b));
+      if (puneWards.includes("8")) {
+        setSelectedWards(["8"]);
+      } else if (puneWards.length > 0) {
+        setSelectedWards([puneWards[0]]);
+      } else {
+        setSelectedWards([]);
       }
+    } else {
+      // For "All" and other cities, show all data with no ward filter
+      setSelectedWards([]);
     }
-  }, [mapInstance, filteredDataForCards]);
+  }, [selectedCity]); // eslint-disable-line react-hooks/exhaustive-deps
+
+
 
   return (
     <div className="p-4 sm:p-6 bg-gray-100 min-h-screen font-sans">
@@ -1508,7 +1576,7 @@ function App() {
                   <div className="mt-6 p-10 bg-white rounded-xl shadow-2xl text-center border-4 border-red-400">
                     <p className="text-2xl font-bold text-red-600">Error: {error}</p>
                   </div>
-                ) : isNagpurSelected ? (
+                ) : isDashboardCity ? (
                   <>
                     {/* Summary Cards */}
                     <div className="flex flex-row flex-nowrap gap-4 overflow-x-auto pb-2 ">
@@ -1588,7 +1656,7 @@ function App() {
                       Coming Soon!
                     </p>
                     <p className="mt-4 text-xl text-gray-600">
-                      Data and visualization for **{selectedCity}** will be available in a future update.
+                      Data and visualization for {selectedCity} will be available in a future update.
                     </p>
                     <button
                       onClick={() => setSelectedCity("Nagpur")}
@@ -1603,19 +1671,25 @@ function App() {
               {/* RIGHT COLUMN - Map + Key Findings */}
               <div className="flex-1 lg:space-y-6">
 
-                {isNagpurSelected ? (
+                {isDashboardCity ? (
                   <>
                     {/* Map */}
                     <div className="h-[750px] lg:h-[900px]">
                       <MapContainer
-                        whenCreated={setMapInstance}
+                        key={selectedCity}
                         center={mapCenter}
-                        zoom={13}
+                        zoom={isAllSelected ? 6 : 13}
                         className="w-full h-full rounded-lg shadow-lg border border-gray-200"
                       >
                         <TileLayer
                           attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
                           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        />
+                        <MapController
+                          center={mapCenter}
+                          filteredDataForCards={filteredDataForCards}
+                          selectedRow={selectedRow}
+                          onMapReady={handleMapReady}
                         />
                         {(selectedRow ? [selectedRow] : filteredDataForCards)
                           .filter((row) => row["_Record_the_location_of_GVP_latitude"] && row["_Record_the_location_of_GVP_longitude"])
@@ -1686,7 +1760,7 @@ function App() {
                 )}
               </div>
             </div>
-            {isNagpurSelected ? (
+            {isDashboardCity ? (
               <>
                 <div className="flex justify-center items-center gap-2 mt-8">
                   <h2 className="text-2xl font-bold text-black cursor-pointer" onClick={() => setIsKeyFindingsOpen(!isKeyFindingsOpen)}>
