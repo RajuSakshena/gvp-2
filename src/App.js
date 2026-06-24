@@ -339,9 +339,27 @@ const DataTable = ({ data, onRowClick, selectedRowIndex }) => {
           <tbody>
             {tableData.slice(0, 50).map((row, index) => {
               const isSelected = selectedRowIndex === index;
+
+              // Extract media URLs at render time directly from _attachments
+              // This avoids any stale/shared reference issues from normalizeRow
+              let photoUrl = "";
+              let videoUrl = "";
+              if (Array.isArray(row._attachments) && row._attachments.length > 0) {
+                const photoAtt = row._attachments.find(
+                  a => a.mimetype === "image/jpeg" || a.mimetype === "image/heic" || a.mimetype === "image/png"
+                );
+                const videoAtt = row._attachments.find(a => a.mimetype === "video/mp4");
+                if (photoAtt) photoUrl = photoAtt.download_url || "";
+                if (videoAtt) videoUrl = videoAtt.download_url || "";
+              }
+              // Fallback to normalized fields (static Nagpur JSON)
+              if (!photoUrl) photoUrl = (row["Photo URL"] !== "N/A" ? row["Photo URL"] : "") || "";
+              if (!videoUrl) videoUrl = (row["Video URL"] !== "N/A" ? row["Video URL"] : "") || "";
+
+              const rowKey = row._uuid || row.id || row._id || `idx-${index}`;
               return (
                 <tr
-                  key={index}
+                  key={rowKey}
                   className="hover:bg-yellow-50/50 transition duration-150 cursor-pointer"
                   style={{
                     height: "40px",
@@ -358,9 +376,9 @@ const DataTable = ({ data, onRowClick, selectedRowIndex }) => {
                     {row["Nearest Location"] || "N/A"}
                   </td>
                   <td className="media-cell px-4 text-sm text-gray-700">
-                    {typeof row["Photo URL"] === "string" && row["Photo URL"].startsWith("http") ? (
+                    {photoUrl && photoUrl.startsWith("http") ? (
                       <a
-                        href={row["Photo URL"]}
+                        href={photoUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="media-btn photo"
@@ -368,9 +386,9 @@ const DataTable = ({ data, onRowClick, selectedRowIndex }) => {
                         📷 Photo
                       </a>
                     ) : null}
-                    {typeof row["Video URL"] === "string" && row["Video URL"].startsWith("http") ? (
+                    {videoUrl && videoUrl.startsWith("http") ? (
                       <a
-                        href={row["Video URL"]}
+                        href={videoUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="media-btn video"
@@ -867,6 +885,9 @@ const normalizeRow = (row) => {
   // ID
   const idValue = row.id || row.gvp_id || row._id || row.GVP_ID || null;
   if (idValue !== null) norm.id = idValue;
+  // Preserve KoboToolbox UUID for strict deduplication
+  if (row._uuid) norm._uuid = row._uuid;
+  if (row["meta/instanceID"]) norm._uuid = norm._uuid || row["meta/instanceID"].replace("uuid:", "");
 
   // Location
   let lat = row["_Record_the_location_of_GVP_latitude"] || row.latitude || row.lat || null;
@@ -950,22 +971,24 @@ const normalizeRow = (row) => {
     }
   }
 
-  // Prioritize existing fields if present (static JSON)
-  let photoUrl = row["Photo URL"] || "";
-  let videoUrl = row["Video URL"] || "";
+  // If this row has _attachments (API row), always use those for photo/video
+  // This ensures Pune API data gets correct per-row media URLs
+  let photoUrl = "";
+  let videoUrl = "";
 
-  // Treat "N/A" as missing/invalid
-  if (photoUrl === "N/A") photoUrl = "";
-  if (videoUrl === "N/A") videoUrl = "";
-
-  // If not set or empty, check _attachments (API data)
-  if (!photoUrl || !videoUrl) {
-    if (Array.isArray(row._attachments)) {
-      const photoAttachment = row._attachments.find(att => att.mimetype === "image/jpeg");
-      const videoAttachment = row._attachments.find(att => att.mimetype === "video/mp4");
-      if (!photoUrl && photoAttachment) photoUrl = photoAttachment.download_url || "";
-      if (!videoUrl && videoAttachment) videoUrl = videoAttachment.download_url || "";
-    }
+  if (Array.isArray(row._attachments) && row._attachments.length > 0) {
+    const photoAttachment = row._attachments.find(
+      att => att.mimetype === "image/jpeg" || att.mimetype === "image/heic" || att.mimetype === "image/png"
+    );
+    const videoAttachment = row._attachments.find(att => att.mimetype === "video/mp4");
+    if (photoAttachment) photoUrl = photoAttachment.download_url || "";
+    if (videoAttachment) videoUrl = videoAttachment.download_url || "";
+  } else {
+    // Fallback to static JSON fields (Nagpur data)
+    photoUrl = row["Photo URL"] || "";
+    videoUrl = row["Video URL"] || "";
+    if (photoUrl === "N/A") photoUrl = "";
+    if (videoUrl === "N/A") videoUrl = "";
   }
 
   // Always set in normalized object
@@ -995,9 +1018,13 @@ const normalizeRow = (row) => {
   nearestLocation = String(nearestLocation).trim().replace(/[\r\n]+/g, " ");
   norm["Nearest Location"] = nearestLocation || null;  // Set to null if empty, table handles "N/A"
 
-  // Detect city: prefer explicit city fields, then Choose_City from API
-  const chooseCity = (row["Choose_City"] || "").toLowerCase().trim();
-  norm.city = row.city || row.City || (chooseCity === "pune" ? "Pune" : (chooseCity === "nagpur" ? "Nagpur" : "Nagpur"));
+  // STRICT: Choose_City from API is the ONLY source of truth for city assignment.
+  // Capitalize first letter so "pune" → "Pune", "nagpur" → "Nagpur", etc.
+  // Static JSON rows that don't have Choose_City will fall back to row.city (set manually in JSON).
+  const rawChooseCity = (row["Choose_City"] || row.city || row.City || "").toLowerCase().trim();
+  norm.city = rawChooseCity
+    ? rawChooseCity.charAt(0).toUpperCase() + rawChooseCity.slice(1)
+    : "Unknown";
 
   // === FIX for Who Dispose columns ===
   norm["Who Dispose1"] = row["Who Dispose1"] || row["Who_Dispose1"] || "N/A";
@@ -1207,12 +1234,14 @@ const normalizeRow = (row) => {
 };
 
 // Stable deduplication
+// Priority: _uuid (KoboToolbox unique per submission) > id/gvp_id > lat+lng
 const deduplicate = (rows) => {
   const seen = new Map();
   const unique = [];
   for (const row of rows) {
     let key = null;
-    if (row.id !== undefined && row.id !== null) key = `id:${row.id}`;
+    if (row._uuid) key = `uuid:${row._uuid}`;
+    else if (row.id !== undefined && row.id !== null) key = `id:${row.id}`;
     else if (row.cluster_id !== undefined && row.cluster_id !== null) key = `cluster:${row.cluster_id}`;
     else {
       const lat = Number(row["_Record_the_location_of_GVP_latitude"] || 0).toFixed(6);
@@ -1281,9 +1310,8 @@ const MapController = ({ center, filteredDataForCards, selectedRow, onMapReady, 
   return null;
 };
 
-// City Slicer Component
-const CitySlicer = ({ selectedCity, setSelectedCity }) => {
-  const cities = ["All", "Nagpur", "Pune"];
+// City Slicer Component - cities are dynamic, derived from actual data
+const CitySlicer = ({ selectedCity, setSelectedCity, availableCities }) => {
   return (
     <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 w-full">
       <h2 className="text-lg font-semibold text-gray-700 mb-4 text-center">
@@ -1294,7 +1322,8 @@ const CitySlicer = ({ selectedCity, setSelectedCity }) => {
         onChange={(e) => setSelectedCity(e.target.value)}
         className="w-full p-2 border border-gray-300 rounded-lg shadow-sm bg-white text-base focus:outline-none focus:ring-2 focus:ring-yellow-500"
       >
-        {cities.map((city) => (
+        <option value="All">All</option>
+        {availableCities.map((city) => (
           <option key={city} value={city}>
             {city}
           </option>
@@ -1325,6 +1354,12 @@ function App() {
   const staticNormalized = useMemo(() => staticDataRaw.map(normalizeRow), []);
 
   useEffect(() => {
+    // MERGE RULE:
+    // Static JSON = historical data (older records not yet in API)
+    // API = live data (new records, any city)
+    // Both are combined. Deduplication by _id/_uuid ensures no record appears twice.
+    // City assignment is strictly from Choose_City field (set in normalizeRow).
+    // So if Nagpur data comes in API later → it merges with static Nagpur automatically.
     const combined = [...staticNormalized, ...apiData];
     const unique = deduplicate(combined);
     setNormalizedMergedData(unique);
@@ -1462,9 +1497,24 @@ function App() {
   const isAllSelected = selectedCity === "All";
   const isDashboardCity = isNagpurSelected || isPuneSelected || isAllSelected;
 
-  // Dynamic map center based on city
-  // "All" uses a center between Nagpur and Pune, zoomed out enough to show both
-  const mapCenter = isPuneSelected ? [18.5204, 73.8567] : isAllSelected ? [19.8, 76.5] : [21.135, 79.085];
+  // Dynamically derive available cities from merged data (sorted alphabetically)
+  const availableCities = useMemo(() => {
+    const citySet = new Set(
+      normalizedMergedData
+        .map(row => row.city || "")
+        .filter(c => c && c !== "Unknown")
+    );
+    return Array.from(citySet).sort();
+  }, [normalizedMergedData]);
+
+  // City center coords map — fallback to a default center if city not listed
+  const CITY_CENTERS = {
+    "Pune": [18.5204, 73.8567],
+    "Nagpur": [21.135, 79.085],
+  };
+  const mapCenter = isAllSelected
+    ? [19.8, 76.5]
+    : CITY_CENTERS[selectedCity] || [20.5937, 78.9629]; // India center as default
 
   useEffect(() => {
     if (mapInstanceRef.current && selectedRow) {
@@ -1571,7 +1621,7 @@ function App() {
               {/* LEFT COLUMN */}
               <div className="w-full lg:w-[460px] space-y-6">
 
-                <CitySlicer selectedCity={selectedCity} setSelectedCity={setSelectedCity} />
+                <CitySlicer selectedCity={selectedCity} setSelectedCity={setSelectedCity} availableCities={availableCities} />
 
                 {isLoading ? (
                   <div className="mt-6 p-10 bg-white rounded-xl shadow-2xl text-center">
