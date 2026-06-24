@@ -1283,7 +1283,7 @@ const MapController = ({ center, filteredDataForCards, selectedRow, onMapReady, 
 
 // City Slicer Component
 const CitySlicer = ({ selectedCity, setSelectedCity }) => {
-  const cities = ["All", "Nagpur", "Pune", "Bangalore", "Andman and Nicobar Island"];
+  const cities = ["All", "Nagpur", "Pune"];
   return (
     <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 w-full">
       <h2 className="text-lg font-semibold text-gray-700 mb-4 text-center">
@@ -1311,7 +1311,7 @@ function App() {
   const [selectedRowIndex, setSelectedRowIndex] = useState(null);
   const mapInstanceRef = useRef(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedCity, setSelectedCity] = useState("Nagpur");
+  const [selectedCity, setSelectedCity] = useState("All");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isKeyFindingsOpen, setIsKeyFindingsOpen] = useState(false);
