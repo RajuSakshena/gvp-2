@@ -1020,11 +1020,12 @@ const normalizeRow = (row) => {
 
   // STRICT: Choose_City from API is the ONLY source of truth for city assignment.
   // Capitalize first letter so "pune" → "Pune", "nagpur" → "Nagpur", etc.
-  // Static JSON rows that don't have Choose_City will fall back to row.city (set manually in JSON).
+  // Static JSON rows that don't have Choose_City will fall back to row.city.
+  // If still empty → default "Nagpur" (static JSON is Nagpur historical data).
   const rawChooseCity = (row["Choose_City"] || row.city || row.City || "").toLowerCase().trim();
   norm.city = rawChooseCity
     ? rawChooseCity.charAt(0).toUpperCase() + rawChooseCity.slice(1)
-    : "Unknown";
+    : "Nagpur"; // static JSON default
 
   // === FIX for Who Dispose columns ===
   norm["Who Dispose1"] = row["Who Dispose1"] || row["Who_Dispose1"] || "N/A";
@@ -1354,15 +1355,15 @@ function App() {
   const staticNormalized = useMemo(() => staticDataRaw.map(normalizeRow), []);
 
   useEffect(() => {
-    // MERGE RULE:
-    // Static JSON = historical data (older records not yet in API)
-    // API = live data (new records, any city)
-    // Both are combined. Deduplication by _id/_uuid ensures no record appears twice.
-    // City assignment is strictly from Choose_City field (set in normalizeRow).
-    // So if Nagpur data comes in API later → it merges with static Nagpur automatically.
+    // MERGE RULE — Combine static JSON + API data, deduplication handles overlaps.
+    // Static JSON = historical Nagpur data
+    // API = live data for all cities (Pune, Nagpur, etc.)
+    //
+    // We keep static Nagpur data ALWAYS and merge with API data.
+    // UUID-based deduplication ensures no duplicates if same record appears in both.
+    // This way Nagpur static data is never accidentally dropped.
     const combined = [...staticNormalized, ...apiData];
-    const unique = deduplicate(combined);
-    setNormalizedMergedData(unique);
+    setNormalizedMergedData(deduplicate(combined));
   }, [staticNormalized, apiData]);
 
   useEffect(() => {
@@ -1423,7 +1424,8 @@ function App() {
     return selectedRow ? [selectedRow] : filteredData;
   }, [selectedRow, filteredData]);
 
-  const totalGarbagePoints = filteredData.length;
+  // When a marker/row is selected show that single point's stats; otherwise city total
+  const totalGarbagePoints = selectedRow ? 1 : filteredData.length;
 
   const totalHathGadiVolume = useMemo(() => {
     return filteredDataForCards.reduce((sum, row) => {
@@ -1446,6 +1448,21 @@ function App() {
 
   const handleMarkerClick = (row) => {
     const keyOfRow = `${row["_Record_the_location_of_GVP_latitude"]}-${row["_Record_the_location_of_GVP_longitude"]}-${row["GVP Ward"]}`;
+
+    // If in "All" cities view and marker has a city, switch to that city first
+    const markerCity = row.city || "Nagpur";
+    if (selectedCity === "All" && markerCity && markerCity !== "All") {
+      setSelectedCity(markerCity);
+      // After city change, selectedWards will reset via useEffect.
+      // We need to find the row in the new city's filtered data.
+      // Use a timeout to let state update, then select the row.
+      setTimeout(() => {
+        setSelectedRowIndex(null); // reset first
+        // Row selection will happen on next render after city filter updates
+      }, 50);
+      return;
+    }
+
     const idx = filteredTableData.findIndex(
       (r) => `${r["_Record_the_location_of_GVP_latitude"]}-${r["_Record_the_location_of_GVP_longitude"]}-${r["GVP Ward"]}` === keyOfRow
     );
