@@ -288,7 +288,7 @@ const TooltipContent = ({ row }) => {
 };
 
 // DataTable Component
-const DataTable = ({ data, onRowClick, selectedRowIndex }) => {
+const DataTable = ({ data, onRowClick, selectedRowStart }) => {
   const tableData = [...data].sort((a, b) => {
     const wardA = a["GVP Ward"] ? Number(a["GVP Ward"]) : Infinity;
     const wardB = b["GVP Ward"] ? Number(b["GVP Ward"]) : Infinity;
@@ -338,10 +338,13 @@ const DataTable = ({ data, onRowClick, selectedRowIndex }) => {
           </thead>
           <tbody>
             {tableData.slice(0, 50).map((row, index) => {
-              const isSelected = selectedRowIndex === index;
+              // CRITICAL: Use row.start to identify which row is selected.
+              // Never use array index — tableData order can differ from filteredTableData.
+              const rowStart = row.start;
+              const isSelected = selectedRowStart !== null && selectedRowStart === rowStart;
 
-              // Extract media URLs at render time directly from _attachments
-              // This avoids any stale/shared reference issues from normalizeRow
+              // Extract media URLs at render time directly from THIS ROW's _attachments.
+              // Never share or cache attachment URLs across rows.
               let photoUrl = "";
               let videoUrl = "";
               if (Array.isArray(row._attachments) && row._attachments.length > 0) {
@@ -352,11 +355,12 @@ const DataTable = ({ data, onRowClick, selectedRowIndex }) => {
                 if (photoAtt) photoUrl = photoAtt.download_url || "";
                 if (videoAtt) videoUrl = videoAtt.download_url || "";
               }
-              // Fallback to normalized fields (static Nagpur JSON)
-              if (!photoUrl) photoUrl = (row["Photo URL"] !== "N/A" ? row["Photo URL"] : "") || "";
-              if (!videoUrl) videoUrl = (row["Video URL"] !== "N/A" ? row["Video URL"] : "") || "";
+              // Fallback to normalized fields (static Nagpur JSON) — already per-row strings
+              if (!photoUrl) photoUrl = (row["Photo URL"] && row["Photo URL"] !== "N/A" ? row["Photo URL"] : "") || "";
+              if (!videoUrl) videoUrl = (row["Video URL"] && row["Video URL"] !== "N/A" ? row["Video URL"] : "") || "";
 
-              const rowKey = row._uuid || row.id || row._id || `idx-${index}`;
+              // Row key: prefer start (unique), fall back to _uuid, then index
+              const rowKey = rowStart || row._uuid || row._id || `idx-${index}`;
               return (
                 <tr
                   key={rowKey}
@@ -367,7 +371,7 @@ const DataTable = ({ data, onRowClick, selectedRowIndex }) => {
                       ? "#FFD54F"
                       : rowColors[index % rowColors.length],
                   }}
-                  onClick={() => onRowClick(index)}
+                  onClick={() => onRowClick(rowStart)}
                 >
                   <td className="px-4 text-sm font-medium text-gray-900">
                     {row["GVP Ward"] || "N/A"}
@@ -382,6 +386,7 @@ const DataTable = ({ data, onRowClick, selectedRowIndex }) => {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="media-btn photo"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         📷 Photo
                       </a>
@@ -392,6 +397,7 @@ const DataTable = ({ data, onRowClick, selectedRowIndex }) => {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="media-btn video"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         🎥 Video
                       </a>
@@ -873,7 +879,15 @@ const wasteReasonsMap = {
 
 // Unified normalization function - ENHANCED FOR ALL ISSUES
 const normalizeRow = (row) => {
+  // CRITICAL: Start with a fresh shallow copy of only this row's own data.
+  // Never share references with other rows.
   const norm = { ...row };
+
+  // PRIMARY KEY: always carry row.start through normalization unchanged.
+  // Every record must have a unique start timestamp.
+  if (row.start !== undefined && row.start !== null) {
+    norm.start = row.start;
+  }
 
   // Ward - support both Nagpur and Pune ward fields
   const wardValue = row["GVP Ward"] || row["Select_the_ward"] || row["GVP_Ward"] || row.ward || row.ward_no || row.ward_number || row["Mention_ward_number_name_Pune"] || null;
@@ -971,27 +985,31 @@ const normalizeRow = (row) => {
     }
   }
 
-  // If this row has _attachments (API row), always use those for photo/video
-  // This ensures Pune API data gets correct per-row media URLs
+  // If this row has _attachments (API row), always use those for photo/video.
+  // CRITICAL: Extract attachments directly from THIS ROW's _attachments array only.
+  // Never reuse attachment URLs from another row. Never cache attachment URLs globally.
   let photoUrl = "";
   let videoUrl = "";
 
   if (Array.isArray(row._attachments) && row._attachments.length > 0) {
-    const photoAttachment = row._attachments.find(
+    // Work on a local copy to be safe
+    const attachments = row._attachments;
+    const photoAttachment = attachments.find(
       att => att.mimetype === "image/jpeg" || att.mimetype === "image/heic" || att.mimetype === "image/png"
     );
-    const videoAttachment = row._attachments.find(att => att.mimetype === "video/mp4");
+    const videoAttachment = attachments.find(att => att.mimetype === "video/mp4");
+    // Only use download_url from THIS row's own attachment objects
     if (photoAttachment) photoUrl = photoAttachment.download_url || "";
     if (videoAttachment) videoUrl = videoAttachment.download_url || "";
   } else {
-    // Fallback to static JSON fields (Nagpur data)
-    photoUrl = row["Photo URL"] || "";
-    videoUrl = row["Video URL"] || "";
-    if (photoUrl === "N/A") photoUrl = "";
-    if (videoUrl === "N/A") videoUrl = "";
+    // Fallback to static JSON fields (Nagpur data) — these are already per-row strings
+    const rawPhoto = row["Photo URL"];
+    const rawVideo = row["Video URL"];
+    photoUrl = (rawPhoto && rawPhoto !== "N/A") ? rawPhoto : "";
+    videoUrl = (rawVideo && rawVideo !== "N/A") ? rawVideo : "";
   }
 
-  // Always set in normalized object
+  // Always set in normalized object — guaranteed to be THIS row's media only
   norm["Photo URL"] = photoUrl;
   norm["Video URL"] = videoUrl;
 
@@ -1234,27 +1252,28 @@ const normalizeRow = (row) => {
   return norm;
 };
 
-// Stable deduplication
-// Priority: _uuid (KoboToolbox unique per submission) > id/gvp_id > lat+lng
+// Stable deduplication — uses row.start as the ONLY primary key.
+// row.start is a unique timestamp string per submission (e.g. "2025-07-16T13:12:11.430+05:30").
+// DO NOT use latitude, longitude, ward, cluster_id, or array index as keys.
+// If a later row has the same start value, the ENTIRE row replaces the earlier one.
+// Never merge properties one-by-one; always replace the whole object.
 const deduplicate = (rows) => {
-  const seen = new Map();
-  const unique = [];
+  // Build a Map keyed on row.start — last writer wins (handles API refresh updates)
+  const map = new Map();
   for (const row of rows) {
-    let key = null;
-    if (row._uuid) key = `uuid:${row._uuid}`;
-    else if (row.id !== undefined && row.id !== null) key = `id:${row.id}`;
-    else if (row.cluster_id !== undefined && row.cluster_id !== null) key = `cluster:${row.cluster_id}`;
-    else {
-      const lat = Number(row["_Record_the_location_of_GVP_latitude"] || 0).toFixed(6);
-      const lng = Number(row["_Record_the_location_of_GVP_longitude"] || 0).toFixed(6);
-      key = `loc:${lat}_${lng}`;
-    }
-    if (!seen.has(key)) {
-      seen.set(key, true);
-      unique.push(row);
+    const key = row.start;
+    if (key !== undefined && key !== null && key !== "") {
+      // Replace entire row — never partial merge
+      map.set(key, row);
+    } else {
+      // Rows without a start value (shouldn't happen, but handle gracefully):
+      // Fall back to a unique sentinel so they're kept but not merged with each other.
+      // Use a combination of fields that together identify the record.
+      const fallbackKey = `_fallback_:${row._uuid || row._id || row.id || ""}_${row["_Record_the_location_of_GVP_latitude"] || ""}_${row["_Record_the_location_of_GVP_longitude"] || ""}_${Math.random()}`;
+      map.set(fallbackKey, row);
     }
   }
-  return unique;
+  return [...map.values()];
 };
 
 // MapController - updates map center/bounds reactively (fixes whenCreated deprecation)
@@ -1338,7 +1357,7 @@ function App() {
   const [apiData, setApiData] = useState([]);
   const [normalizedMergedData, setNormalizedMergedData] = useState([]);
   const [selectedWards, setSelectedWards] = useState([]);
-  const [selectedRowIndex, setSelectedRowIndex] = useState(null);
+  const [selectedRowStart, setSelectedRowStart] = useState(null);
   const mapInstanceRef = useRef(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedCity, setSelectedCity] = useState("All");
@@ -1355,15 +1374,37 @@ function App() {
   const staticNormalized = useMemo(() => staticDataRaw.map(normalizeRow), []);
 
   useEffect(() => {
-    // MERGE RULE — Combine static JSON + API data, deduplication handles overlaps.
-    // Static JSON = historical Nagpur data
-    // API = live data for all cities (Pune, Nagpur, etc.)
+    // MERGE RULE — Combine static JSON + API data using a Map keyed on row.start.
+    // Static JSON = historical Nagpur data.
+    // API = live data for all cities (Pune, Nagpur, etc.).
     //
-    // We keep static Nagpur data ALWAYS and merge with API data.
-    // UUID-based deduplication ensures no duplicates if same record appears in both.
-    // This way Nagpur static data is never accidentally dropped.
-    const combined = [...staticNormalized, ...apiData];
-    setNormalizedMergedData(deduplicate(combined));
+    // Map(start) ensures:
+    //   1. Every record is uniquely identified by its start timestamp.
+    //   2. If the same start appears in both static and API data, the API version
+    //      (which comes later) replaces the entire static row — no property merging.
+    //   3. No field from another row ever contaminates this row.
+    //
+    // Static Nagpur data is loaded first; API data overwrites on key collision.
+    const mergeMap = new Map();
+    for (const row of staticNormalized) {
+      const key = row.start;
+      if (key !== undefined && key !== null && key !== "") {
+        mergeMap.set(key, row);
+      } else {
+        // No start key — use a unique fallback so record is kept
+        mergeMap.set(`_static_fallback_${mergeMap.size}`, row);
+      }
+    }
+    for (const row of apiData) {
+      const key = row.start;
+      if (key !== undefined && key !== null && key !== "") {
+        // Entire row replaces — never Object.assign, never copy fields from old row
+        mergeMap.set(key, row);
+      } else {
+        mergeMap.set(`_api_fallback_${mergeMap.size}`, row);
+      }
+    }
+    setNormalizedMergedData([...mergeMap.values()]);
   }, [staticNormalized, apiData]);
 
   useEffect(() => {
@@ -1418,7 +1459,11 @@ function App() {
     return filteredData;
   }, [filteredData]);
 
-  const selectedRow = selectedRowIndex !== null ? filteredTableData[selectedRowIndex] : null;
+  // Look up selected row by its unique start key — immune to filter/sort changes.
+  // Never use array index; filteredTableData order can change when filters change.
+  const selectedRow = selectedRowStart !== null
+    ? filteredTableData.find(r => r.start === selectedRowStart) || null
+    : null;
 
   const filteredDataForCards = useMemo(() => {
     return selectedRow ? [selectedRow] : filteredData;
@@ -1447,49 +1492,43 @@ function App() {
   const solutionData = useMemo(() => calculateSolutionData(filteredDataForCards), [filteredDataForCards]);
 
   const handleMarkerClick = (row) => {
-    const keyOfRow = `${row["_Record_the_location_of_GVP_latitude"]}-${row["_Record_the_location_of_GVP_longitude"]}-${row["GVP Ward"]}`;
+    // CRITICAL: Always use row.start as the unique key for selection.
+    // Never use lat/lng/ward composite — multiple records can share those values.
+    const rowStart = row.start;
 
     // If in "All" cities view and marker has a city, switch to that city first
     const markerCity = row.city || "Nagpur";
     if (selectedCity === "All" && markerCity && markerCity !== "All") {
       setSelectedCity(markerCity);
-      // After city change, selectedWards will reset via useEffect.
-      // We need to find the row in the new city's filtered data.
-      // Use a timeout to let state update, then select the row.
-      setTimeout(() => {
-        setSelectedRowIndex(null); // reset first
-        // Row selection will happen on next render after city filter updates
-      }, 50);
+      // After city switch, select this specific row by its start key
+      setSelectedRowStart(rowStart);
       return;
     }
 
-    const idx = filteredTableData.findIndex(
-      (r) => `${r["_Record_the_location_of_GVP_latitude"]}-${r["_Record_the_location_of_GVP_longitude"]}-${r["GVP Ward"]}` === keyOfRow
-    );
+    // Toggle selection: clicking the already-selected marker deselects it
+    if (selectedRowStart === rowStart) {
+      setSelectedRowStart(null);
+    } else {
+      setSelectedRowStart(rowStart);
+    }
 
-    if (idx !== -1) {
-      if (selectedRowIndex === idx) {
-        setSelectedRowIndex(null);
-      } else {
-        setSelectedRowIndex(idx);
-      }
-      if (mapInstanceRef.current) {
-        const lat = Number(row["_Record_the_location_of_GVP_latitude"]);
-        const lng = Number(row["_Record_the_location_of_GVP_longitude"]);
-        if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
-          try {
-            mapInstanceRef.current.flyTo([lat, lng], 15, { animate: true, duration: 0.5 });
-          } catch (e) {}
-        }
+    if (mapInstanceRef.current) {
+      const lat = Number(row["_Record_the_location_of_GVP_latitude"]);
+      const lng = Number(row["_Record_the_location_of_GVP_longitude"]);
+      if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+        try {
+          mapInstanceRef.current.flyTo([lat, lng], 15, { animate: true, duration: 0.5 });
+        } catch (e) {}
       }
     }
   };
 
-  const handleRowClick = (rowIndex) => {
-    if (selectedRowIndex === rowIndex) {
-      setSelectedRowIndex(null);
+  const handleRowClick = (rowStart) => {
+    // rowStart is row.start — the unique primary key for this record.
+    if (selectedRowStart === rowStart) {
+      setSelectedRowStart(null);
     } else {
-      setSelectedRowIndex(rowIndex);
+      setSelectedRowStart(rowStart);
     }
   };
 
@@ -1549,12 +1588,12 @@ function App() {
   }, [selectedRow]);
 
   useEffect(() => {
-    setSelectedRowIndex(null);
+    setSelectedRowStart(null);
   }, [selectedWards, normalizedMergedData]);
 
   // Auto-select Ward 8 when switching to Pune; clear selection for other cities
   useEffect(() => {
-    setSelectedRowIndex(null);
+    setSelectedRowStart(null);
     if (selectedCity === "Pune") {
       const puneWards = Array.from(
         new Set(
@@ -1717,7 +1756,7 @@ function App() {
                       <DataTable
                         data={selectedRow ? [selectedRow] : filteredDataForCards}
                         onRowClick={handleRowClick}
-                        selectedRowIndex={selectedRowIndex}
+                        selectedRowStart={selectedRowStart}
                       />
                     </div>
 
