@@ -1,17 +1,17 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import { MapContainer, TileLayer, Marker, Tooltip as LeafletTooltip, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import { Routes, Route, Link } from "react-router-dom";
 import "react-image-gallery/styles/css/image-gallery.css";
 import About from "./About";
 import Partners from "./Partners";
 import Impact from "./Impact";
-import Mainicon from "./our-partner/favicon.png";
 
 import {
   PieChart,
   Pie,
   Cell,
   Tooltip,
+  Legend,
   ResponsiveContainer,
   BarChart,
   Bar,
@@ -22,7 +22,21 @@ import {
 
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
+import "leaflet.markercluster"; // plain Leaflet plugin — attaches L.markerClusterGroup, no React dependency
+import ReactDOMServer from "react-dom/server";
 import { useMediaQuery } from "react-responsive";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import CountUp from "react-countup";
+import {
+  FaMapMarkerAlt,
+  FaFilePdf,
+  FaChevronDown,
+  FaDolly,
+  FaCamera,
+} from "react-icons/fa";
 
 import staticDataRaw from "./data_cleaned.json";
 
@@ -93,11 +107,17 @@ const renderCustomizedLabel = (isSmallScreen) => (props) => {
     outerRadius,
     percent,
     name,
+    index,
   } = props;
 
   const RADIAN = Math.PI / 180;
 
-  const labelRadius = outerRadius + (isSmallScreen ? 45 : 35);
+  // Stagger alternating labels further out from the donut so two adjacent
+  // slices (e.g. "Battery & Bulb" next to "Construction & Demolition") never
+  // land on the same radius and overlap/mix into each other.
+  const baseOffset = isSmallScreen ? 45 : 35;
+  const staggerOffset = (index % 2 === 1) ? (isSmallScreen ? 22 : 20) : 0;
+  const labelRadius = outerRadius + baseOffset + staggerOffset;
 
   const x = cx + labelRadius * Math.cos(-midAngle * RADIAN);
   const y = cy + labelRadius * Math.sin(-midAngle * RADIAN);
@@ -113,7 +133,7 @@ const renderCustomizedLabel = (isSmallScreen) => (props) => {
         fill="#000"
         textAnchor={x > cx ? "start" : "end"}
         dominantBaseline="central"
-        fontSize={isSmallScreen ? 9 : 14}
+        fontSize={isSmallScreen ? 9 : 13}
       >
         <tspan x={x} dy="-0.6em">{prefix} &</tspan>
         <tspan x={x} dy="1.2em">{suffix} {percentage}%</tspan>
@@ -127,7 +147,7 @@ const renderCustomizedLabel = (isSmallScreen) => (props) => {
         fill="#000"
         textAnchor={x > cx ? "start" : "end"}
         dominantBaseline="central"
-        fontSize={isSmallScreen ? 9 : 14}
+        fontSize={isSmallScreen ? 9 : 13}
       >
         {`${name} ${percentage}%`}
       </text>
@@ -296,14 +316,14 @@ const DataTable = ({ data, onRowClick, selectedRowStart }) => {
   });
 
   const rowColors = [
-    "#FFEBEE",
-    "#FFF3E0",
-    "#FFF9C4",
-    "#E8F5E9",
-    "#E3F2FD",
-    "#F3E5F5",
-    "#ECEFF1",
-    "#FFFDE7",
+    "#F5F7FF",
+    "#F0FDFA",
+    "#FEFCE8",
+    "#F0FDF4",
+    "#EFF6FF",
+    "#FAF5FF",
+    "#F8FAFC",
+    "#FDF4FF",
   ];
 
   if (tableData.length === 0) {
@@ -317,21 +337,27 @@ const DataTable = ({ data, onRowClick, selectedRowStart }) => {
   }
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 w-full h-full">
-      <h2 className="text-xl font-bold text-gray-800 mb-4">
+    <div className="bg-white p-4 rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300 w-full h-full">
+      <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <FaCamera className="text-indigo-500" />
         Photos and Videos of Garbage Points
       </h2>
-      <div className="overflow-y-auto max-h-[348px]">
+      <div className="overflow-y-auto max-h-[348px] rounded-xl border border-gray-100">
         <table className="min-w-full divide-y divide-gray-200 table-fixed text-sm">
-          <thead className="bg-gray-50">
+          <colgroup>
+            <col className="w-[18%]" />
+            <col className="w-[52%]" />
+            <col className="w-[30%]" />
+          </colgroup>
+          <thead className="bg-gradient-to-r from-indigo-50 to-cyan-50 sticky top-0 z-10 shadow-sm">
             <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wider">
                 GVP Ward
               </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 fonts-medium uppercase">
+              <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wider">
                 Nearest Location
               </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+              <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wider">
                 Media
               </th>
             </tr>
@@ -364,22 +390,22 @@ const DataTable = ({ data, onRowClick, selectedRowStart }) => {
               return (
                 <tr
                   key={rowKey}
-                  className="hover:bg-yellow-50/50 transition duration-150 cursor-pointer"
+                  className="hover:bg-indigo-50 hover:scale-[1.01] transition-all duration-150 cursor-pointer align-top"
                   style={{
-                    height: "40px",
+                    minHeight: "40px",
                     backgroundColor: isSelected
-                      ? "#FFD54F"
+                      ? "#C7D2FE"
                       : rowColors[index % rowColors.length],
                   }}
                   onClick={() => onRowClick(rowStart)}
                 >
-                  <td className="px-4 text-sm font-medium text-gray-900">
+                  <td className="px-2 sm:px-4 py-2 text-sm font-medium text-gray-900 break-words">
                     {row["GVP Ward"] || "N/A"}
                   </td>
-                  <td className="px-4 text-sm text-gray-700">
+                  <td className="px-2 sm:px-4 py-2 text-sm text-gray-700 break-words">
                     {row["Nearest Location"] || "N/A"}
                   </td>
-                  <td className="media-cell px-4 text-sm text-gray-700">
+                  <td className="media-cell px-2 sm:px-4 py-2 text-sm text-gray-700">
                     {photoUrl && photoUrl.startsWith("http") ? (
                       <a
                         href={photoUrl}
@@ -413,16 +439,16 @@ const DataTable = ({ data, onRowClick, selectedRowStart }) => {
   );
 };
 
-// Colors for pie chart
+// Colors for pie chart — richer, more premium palette
 const COLORS = [
-  "#0088FE",
-  "#00C49F",
-  "#FFBB28",
-  "#FF8042",
-  "#A020F0",
-  "#DC143C",
-  "#2E8B57",
-  "#808080",
+  "#6366F1", // indigo
+  "#06B6D4", // cyan
+  "#F59E0B", // amber
+  "#EF4444", // red
+  "#8B5CF6", // violet
+  "#EC4899", // pink
+  "#10B981", // emerald
+  "#64748B", // slate
 ];
 
 // Ward-specific color names for map markers
@@ -433,14 +459,27 @@ const WARD_COLOR_MAP = {
   "15": "orange",
 };
 
-// Colors for bar charts
+// Colors for bar charts — matched to the palette above
 const BAR_COLORS = [
-  "#0088FE",
-  "#00C49F",
-  "#FFBB28",
-  "#FF8042",
-  "#A020F0",
+  "#6366F1",
+  "#06B6D4",
+  "#F59E0B",
+  "#EF4444",
+  "#8B5CF6",
 ];
+
+// Shared premium tooltip styling used across every Recharts <Tooltip />
+const TOOLTIP_CONTENT_STYLE = {
+  background: "rgba(255,255,255,0.97)",
+  border: "1px solid #E5E7EB",
+  borderRadius: "12px",
+  boxShadow: "0 10px 30px rgba(15,23,42,0.15)",
+  padding: "10px 14px",
+  fontSize: "13px",
+};
+const TOOLTIP_LABEL_STYLE = { fontWeight: 700, color: "#1F2937", marginBottom: 4 };
+const TOOLTIP_ITEM_STYLE = { color: "#374151", padding: 0 };
+const TOOLTIP_CURSOR_STYLE = { fill: "rgba(99,102,241,0.06)" };
 
 // Card size classes
 const CARD_SIZE_CLASSES = "w-[250px] h-32";
@@ -1252,30 +1291,6 @@ const normalizeRow = (row) => {
   return norm;
 };
 
-// Stable deduplication — uses row.start as the ONLY primary key.
-// row.start is a unique timestamp string per submission (e.g. "2025-07-16T13:12:11.430+05:30").
-// DO NOT use latitude, longitude, ward, cluster_id, or array index as keys.
-// If a later row has the same start value, the ENTIRE row replaces the earlier one.
-// Never merge properties one-by-one; always replace the whole object.
-const deduplicate = (rows) => {
-  // Build a Map keyed on row.start — last writer wins (handles API refresh updates)
-  const map = new Map();
-  for (const row of rows) {
-    const key = row.start;
-    if (key !== undefined && key !== null && key !== "") {
-      // Replace entire row — never partial merge
-      map.set(key, row);
-    } else {
-      // Rows without a start value (shouldn't happen, but handle gracefully):
-      // Fall back to a unique sentinel so they're kept but not merged with each other.
-      // Use a combination of fields that together identify the record.
-      const fallbackKey = `_fallback_:${row._uuid || row._id || row.id || ""}_${row["_Record_the_location_of_GVP_latitude"] || ""}_${row["_Record_the_location_of_GVP_longitude"] || ""}_${Math.random()}`;
-      map.set(fallbackKey, row);
-    }
-  }
-  return [...map.values()];
-};
-
 // MapController - updates map center/bounds reactively (fixes whenCreated deprecation)
 const MapController = ({ center, filteredDataForCards, selectedRow, onMapReady, isAllCities }) => {
   const map = useMap();
@@ -1330,25 +1345,124 @@ const MapController = ({ center, filteredDataForCards, selectedRow, onMapReady, 
   return null;
 };
 
+// ClusteredMarkers — plain Leaflet marker clustering rendered imperatively via useMap().
+// Deliberately avoids "react-leaflet-cluster" (requires React 19 / react-leaflet v5).
+// leaflet.markercluster itself is a vanilla Leaflet plugin with no React dependency at all,
+// so this works fine on React 18.2.0 + react-leaflet 4.2.1.
+const ClusteredMarkers = ({ rows, selectedRowStart, onMarkerClick }) => {
+  const map = useMap();
+  const clusterGroupRef = useRef(null);
+
+  useEffect(() => {
+    if (!map) return undefined;
+
+    const clusterGroup = L.markerClusterGroup({
+      chunkedLoading: true,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      maxClusterRadius: 50,
+      iconCreateFunction: (cluster) => {
+        const count = cluster.getChildCount();
+        const size = count < 10 ? 34 : count < 50 ? 42 : 50;
+        return L.divIcon({
+          html: `<div style="
+            width:${size}px;height:${size}px;
+            display:flex;align-items:center;justify-content:center;
+            border-radius:9999px;
+            background:linear-gradient(135deg,#6366F1,#8B5CF6);
+            color:#fff;font-weight:700;font-size:13px;
+            box-shadow:0 6px 16px rgba(99,102,241,0.45);
+            border:2px solid #ffffff;">
+            ${count}
+          </div>`,
+          className: "custom-cluster-icon",
+          iconSize: [size, size],
+        });
+      },
+    });
+
+    rows.forEach((row) => {
+      const lat = Number(row["_Record_the_location_of_GVP_latitude"]);
+      const lng = Number(row["_Record_the_location_of_GVP_longitude"]);
+      if (Number.isNaN(lat) || Number.isNaN(lng)) return;
+
+      const ward = row["GVP Ward"] || "";
+      // Color markers by waste volume (red = high, orange = medium, green = low),
+      // falling back to the legacy ward-based color when volume data is missing.
+      const wasteVolume = Number(row["waste_hath_gadi"]) || 0;
+      const colorName =
+        wasteVolume >= 7 ? "red" : wasteVolume >= 3 ? "orange" : wasteVolume > 0 ? "green" : WARD_COLOR_MAP[ward] || "blue";
+      const isMarkerSelected = selectedRowStart === row.start;
+
+      const icon = L.icon({
+        iconRetinaUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${colorName}.png`,
+        iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${colorName}.png`,
+        shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+        iconSize: isMarkerSelected ? [32, 52] : [25, 41],
+        iconAnchor: isMarkerSelected ? [16, 52] : [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41],
+        className: isMarkerSelected ? "marker-pulse" : "",
+      });
+
+      const marker = L.marker([lat, lng], { icon });
+
+      // Render the exact same TooltipContent React component to a static HTML
+      // string — same info, same normalized fields, just rendered outside React's
+      // tree since vanilla Leaflet layers aren't React children.
+      const tooltipHtml = `
+        <div style="max-width:480px;min-width:400px;padding:12px;background:white;border-radius:14px;box-shadow:0 12px 28px rgba(79,70,229,0.18);border:1px solid #E0E7FF;">
+          <div style="margin-bottom:6px;font-weight:700;color:#4338CA;">📍 Garbage Point Info</div>
+          ${ReactDOMServer.renderToStaticMarkup(<TooltipContent row={row} />)}
+        </div>
+      `;
+      marker.bindTooltip(tooltipHtml, {
+        direction: "auto",
+        offset: [0, -20],
+        opacity: 1,
+        sticky: true,
+        className: "custom-tooltip",
+      });
+
+      marker.on("click", () => onMarkerClick(row));
+
+      clusterGroup.addLayer(marker);
+    });
+
+    map.addLayer(clusterGroup);
+    clusterGroupRef.current = clusterGroup;
+
+    return () => {
+      map.removeLayer(clusterGroup);
+      clusterGroupRef.current = null;
+    };
+  }, [map, rows, selectedRowStart, onMarkerClick]);
+
+  return null;
+};
+
 // City Slicer Component - cities are dynamic, derived from actual data
 const CitySlicer = ({ selectedCity, setSelectedCity, availableCities }) => {
   return (
-    <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 w-full">
+    <div className="bg-white p-4 rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300 w-full">
       <h2 className="text-lg font-semibold text-gray-700 mb-4 text-center">
         Select City
       </h2>
-      <select
-        value={selectedCity}
-        onChange={(e) => setSelectedCity(e.target.value)}
-        className="w-full p-2 border border-gray-300 rounded-lg shadow-sm bg-white text-base focus:outline-none focus:ring-2 focus:ring-yellow-500"
-      >
-        <option value="All">All</option>
-        {availableCities.map((city) => (
-          <option key={city} value={city}>
-            {city}
-          </option>
-        ))}
-      </select>
+      <div className="relative w-full">
+        <select
+          value={selectedCity}
+          onChange={(e) => setSelectedCity(e.target.value)}
+          className="w-full appearance-none text-center pl-3 pr-9 py-2.5 border border-gray-300 rounded-lg shadow-sm bg-white text-base text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value="All">All</option>
+          {availableCities.map((city) => (
+            <option key={city} value={city}>
+              {city}
+            </option>
+          ))}
+        </select>
+        <FaChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400" />
+      </div>
     </div>
   );
 };
@@ -1364,6 +1478,11 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isKeyFindingsOpen, setIsKeyFindingsOpen] = useState(false);
+  const [mapLayerType, setMapLayerType] = useState("street"); // "street" | "satellite"
+  const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
+  const [isCapturingButtonStyle, setIsCapturingButtonStyle] = useState(false);
+  const dashboardCaptureRef = useRef(null); // wraps cards + wards + photos + map (everything currently on screen)
+  const analyticsCaptureRef = useRef(null); // wraps just the charts inside the Key Findings accordion
 
   const handleMapReady = useCallback((map) => {
     mapInstanceRef.current = map;
@@ -1544,14 +1663,120 @@ function App() {
     setSelectedWards(uniqueWards);
   };
 
-  const toggleDropdown = () => {
-    setIsDropdownOpen(!isDropdownOpen);
-  };
-
   const isNagpurSelected = selectedCity === "Nagpur";
   const isPuneSelected = selectedCity === "Pune";
   const isAllSelected = selectedCity === "All";
   const isDashboardCity = isNagpurSelected || isPuneSelected || isAllSelected;
+
+  // ===================== DASHBOARD SCREENSHOT EXPORT =====================
+  // Captures EXACTLY what is currently on screen — cards, wards, photos
+  // list, and the map — plus the Key Findings charts (opening that popup
+  // briefly if it wasn't already open, then restoring it to whatever state
+  // it was in before). Everything is stitched into one tall, colorful PNG.
+  const handleDownloadPDF = useCallback(async () => {
+    if (!dashboardCaptureRef.current) {
+      window.alert("Nothing to capture yet — please wait for the dashboard to load.");
+      return;
+    }
+
+    setIsCapturingScreenshot(true);
+    setIsCapturingButtonStyle(true);
+
+    // Let React actually re-render the button in its "capturing" styles
+    // before we screenshot the dashboard — otherwise html2canvas can grab
+    // a frame from before the style switch even applied.
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+    // Remember whether the analytics popup was already open, so we can put
+    // things back exactly as they were once the PDF is done.
+    const wasKeyFindingsOpen = isKeyFindingsOpen;
+
+    try {
+      const captureOptions = {
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        scale: Math.min(window.devicePixelRatio || 1, 2),
+        logging: false,
+        imageTimeout: 15000,
+      };
+
+      // Give the map tiles a brief moment to finish loading/re-fetching
+      // (html2canvas re-requests tile images under CORS to capture them,
+      // so we wait a beat before snapshotting the dashboard).
+      await new Promise((resolve) => setTimeout(resolve, 400));
+
+      // 1) Capture the main dashboard (cards, wards, photos, map) as it looks right now
+      const dashboardCanvas = await html2canvas(dashboardCaptureRef.current, captureOptions);
+
+      // The button only needs its special PDF-safe styling for that one
+      // snapshot above — revert it immediately so the live button looks
+      // normal (centered) again for the rest of the generation process.
+      setIsCapturingButtonStyle(false);
+
+      // 2) Make sure the analytics charts are actually rendered, then capture them too
+      let analyticsCanvas = null;
+      if (isDashboardCity) {
+        if (!wasKeyFindingsOpen) {
+          setIsKeyFindingsOpen(true);
+          // Give React + the charts a moment to render before capturing
+          await new Promise((resolve) => setTimeout(resolve, 700));
+        }
+        if (analyticsCaptureRef.current) {
+          analyticsCanvas = await html2canvas(analyticsCaptureRef.current, captureOptions);
+        }
+        if (!wasKeyFindingsOpen) {
+          setIsKeyFindingsOpen(false);
+        }
+      }
+
+      // 3) Stitch both canvases into a single tall image
+      const gap = 24;
+      const width = Math.max(dashboardCanvas.width, analyticsCanvas ? analyticsCanvas.width : 0);
+      const height =
+        dashboardCanvas.height + (analyticsCanvas ? gap + analyticsCanvas.height : 0);
+
+      const finalCanvas = document.createElement("canvas");
+      finalCanvas.width = width;
+      finalCanvas.height = height;
+      const ctx = finalCanvas.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(dashboardCanvas, 0, 0);
+      if (analyticsCanvas) {
+        ctx.drawImage(analyticsCanvas, 0, dashboardCanvas.height + gap);
+      }
+
+      // 4) Drop the full image into a PDF sized to fit it exactly — nothing
+      // gets cropped or split across pages, it's one tall page start to finish.
+      const imgData = finalCanvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: width > height ? "landscape" : "portrait",
+        unit: "px",
+        format: [width, height],
+        compress: true,
+      });
+      pdf.addImage(imgData, "PNG", 0, 0, width, height);
+
+      const dateStamp = new Date().toISOString().slice(0, 10);
+      const wardForFilename = selectedRow
+        ? `Ward${selectedRow["GVP Ward"] ?? "NA"}`
+        : selectedWards.length > 0
+        ? `Ward-${selectedWards.join("-")}`
+        : "AllWards";
+      const filename = `BharatGarbageTracker_${selectedCity}_${wardForFilename}_${dateStamp}.pdf`;
+
+      pdf.save(filename);
+    } catch (err) {
+      window.alert("Something went wrong while creating the PDF. Please try again.");
+    } finally {
+      setIsCapturingScreenshot(false);
+      setIsCapturingButtonStyle(false);
+    }
+  }, [isKeyFindingsOpen, isDashboardCity, selectedRow, selectedWards, selectedCity]);
+
+  const toggleDropdown = () => {
+    setIsDropdownOpen(!isDropdownOpen);
+  };
 
   // Dynamically derive available cities from merged data (sorted alphabetically)
   const availableCities = useMemo(() => {
@@ -1619,18 +1844,19 @@ function App() {
 
 
   return (
-    <div className="p-4 sm:p-6 bg-gray-100 min-h-screen font-sans">
+    <div className="p-4 sm:p-6 bg-gradient-to-br from-slate-50 via-indigo-50/40 to-cyan-50/40 min-h-screen font-sans">
+      <style>{`
+        @keyframes markerPulse {
+          0% { filter: drop-shadow(0 0 0 rgba(99,102,241,0.7)); transform: scale(1); }
+          70% { filter: drop-shadow(0 0 10px rgba(99,102,241,0)); transform: scale(1.08); }
+          100% { filter: drop-shadow(0 0 0 rgba(99,102,241,0)); transform: scale(1); }
+        }
+        .marker-pulse { animation: markerPulse 1.4s ease-in-out infinite; }
+      `}</style>
       {/* Header Section */}
-      <div className="text-center mb-6">
+      <div className="text-center mb-6 bg-white/70 backdrop-blur rounded-2xl shadow-sm border border-white/60 py-4">
         <div className="flex justify-center items-center gap-3 mb-2">
-          <img
-            src={Mainicon}
-            alt="Mainicon Logo"
-            className="h-10 w-auto"
-          
-          />
-
-          <h1 className="text-3xl font-bold text-gray-800">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-cyan-600 bg-clip-text text-transparent">
             Bharat Garbage Tracker
           </h1>
         </div>
@@ -1639,30 +1865,30 @@ function App() {
         <nav className="flex justify-center space-x-8 mt-4 border-b border-gray-200 pb-2">
           <Link
             to="/"
-            className="text-gray-600 hover:text-yellow-600 font-semibold transition duration-300"
+            className="text-gray-600 hover:text-indigo-600 font-semibold transition duration-300"
           >
             Home
           </Link>
           <Link
             to="/about"
-            className="text-gray-600 hover:text-yellow-600 font-semibold transition duration-300"
+            className="text-gray-600 hover:text-indigo-600 font-semibold transition duration-300"
           >
-            About the Initiative
+            About
           </Link>
           <Link
             to="/partners"
-            className="text-gray-600 hover:text-yellow-600 font-semibold transition duration-300"
+            className="text-gray-600 hover:text-indigo-600 font-semibold transition duration-300"
           >
-            Our Partners
+            Partners
           </Link>
-          <Link to="/impact" className="text-gray-600 hover:text-yellow-600 font-semibold transition duration-300">Impact</Link>
+          <Link to="/impact" className="text-gray-600 hover:text-indigo-600 font-semibold transition duration-300">Impact</Link>
           <a
             href="https://ee.kobotoolbox.org/x/JoXcMcRe"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-gray-600 hover:text-yellow-600 font-semibold transition duration-300"
+            className="text-gray-600 hover:text-indigo-600 font-semibold transition duration-300"
           >
-            + Enter Data
+            +Contribute
           </a>
         </nav>
       </div>
@@ -1673,7 +1899,7 @@ function App() {
         <Route path="/impact" element={<Impact />} />
         <Route path="/" element={
           <>
-            <div className="flex flex-col lg:flex-row gap-6 mt-6">
+            <div ref={dashboardCaptureRef} className="flex flex-col lg:flex-row gap-6 mt-6">
               {/* LEFT COLUMN */}
               <div className="w-full lg:w-[460px] space-y-6">
 
@@ -1689,34 +1915,53 @@ function App() {
                   </div>
                 ) : isDashboardCity ? (
                   <>
+                    {/* Download Summary Button — captures the whole dashboard (cards, map, and charts) as one colorful PDF */}
+                    <button
+                      onClick={handleDownloadPDF}
+                      disabled={isCapturingScreenshot}
+                      className={`group w-full text-center px-4 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-indigo-300/60 hover:shadow-xl transition-all duration-300 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed ${isCapturingButtonStyle ? "pt-1 pb-5" : "py-3"}`}
+                    >
+                      <FaFilePdf
+                        className="inline text-lg mr-2 group-hover:scale-110 transition-transform duration-300"
+                        style={isCapturingButtonStyle ? { position: "relative", top: "6px" } : undefined}
+                      />
+                      Download Summary
+                    </button>
+
                     {/* Summary Cards */}
                     <div className="flex flex-row flex-nowrap gap-4 overflow-x-auto pb-2 ">
-                      <div className={`bg-white p-4 rounded-lg shadow-lg text-center border-b-4 border-yellow-500 flex flex-col justify-center ${CARD_SIZE_CLASSES}`}>
-                        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                      <div className={`relative overflow-hidden bg-white/80 backdrop-blur p-4 rounded-2xl shadow-lg text-center border border-gray-100 border-t-4 border-t-indigo-500 flex flex-col justify-center hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 ${CARD_SIZE_CLASSES}`}>
+                        <div className="mx-auto mb-1 flex items-center justify-center w-9 h-9 rounded-full bg-indigo-50 text-indigo-500">
+                          <FaMapMarkerAlt />
+                        </div>
+                        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           Total Garbage Points
                         </h2>
-                        <p className="text-5xl font-extrabold mt-1 text-gray-900">
-                          {totalGarbagePoints}
+                        <p className="text-4xl font-extrabold mt-1 text-gray-900">
+                          <CountUp end={totalGarbagePoints} duration={0.8} separator="," />
                         </p>
                       </div>
 
-                      <div className={`bg-white p-4 rounded-lg shadow-lg text-center border-b-4 border-green-500 flex flex-col justify-center ${CARD_SIZE_CLASSES}`}>
-                        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+                      <div className={`relative overflow-hidden bg-white/80 backdrop-blur p-4 rounded-2xl shadow-lg text-center border border-gray-100 border-t-4 border-t-emerald-500 flex flex-col justify-center hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 ${CARD_SIZE_CLASSES}`}>
+                        <div className="mx-auto mb-1 flex items-center justify-center w-9 h-9 rounded-full bg-emerald-50 text-emerald-500">
+                          <FaDolly />
+                        </div>
+                        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           GVP Waste Volume (Hath Gadi)
                         </h2>
-                        <p className="text-5xl font-extrabold mt-1 text-gray-900">
-                          {Math.round(totalHathGadiVolume)}
+                        <p className="text-4xl font-extrabold mt-1 text-gray-900">
+                          <CountUp end={Math.round(totalHathGadiVolume)} duration={0.8} separator="," />
                         </p>
                       </div>
                     </div>
 
                     {/* Ward Selector */}
-                    <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 relative ">
+                    <div className="bg-white p-4 rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300 relative ">
                       <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">Wards</h2>
                       <div className="relative">
                         <button
                           onClick={toggleDropdown}
-                          className="w-full p-2 border rounded-lg shadow-sm bg-white text-left focus:outline-none focus:ring-2 focus:ring-yellow-500 flex justify-between items-center"
+                          className="w-full p-2 border rounded-lg shadow-sm bg-white text-left focus:outline-none focus:ring-2 focus:ring-indigo-500 flex justify-between items-center"
                         >
                           {selectedWards.length > 0
                             ? `${selectedWards.length} ward(s) selected`
@@ -1730,7 +1975,7 @@ function App() {
                                 type="checkbox"
                                 checked={selectedWards.length === uniqueWards.length}
                                 onChange={handleSelectAll}
-                                className="form-checkbox h-4 w-4 text-yellow-500"
+                                className="form-checkbox h-4 w-4 text-indigo-500"
                               />
                               <span className="text-sm">All</span>
                             </label>
@@ -1741,7 +1986,7 @@ function App() {
                                   value={ward}
                                   checked={selectedWards.includes(ward)}
                                   onChange={handleWardChange}
-                                  className="form-checkbox h-4 w-4 text-yellow-500"
+                                  className="form-checkbox h-4 w-4 text-indigo-500"
                                 />
                                 <span className="text-sm">{ward}</span>
                               </label>
@@ -1785,17 +2030,33 @@ function App() {
                 {isDashboardCity ? (
                   <>
                     {/* Map */}
-                    <div className="h-[750px] lg:h-[900px]">
+                    <div className="h-[750px] lg:h-[900px] relative">
                       <MapContainer
                         key={selectedCity}
                         center={mapCenter}
                         zoom={isAllSelected ? 6 : 13}
-                        className="w-full h-full rounded-lg shadow-lg border border-gray-200"
+                        className="w-full h-full rounded-2xl shadow-xl border border-gray-100"
                       >
-                        <TileLayer
-                          attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
-                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        />
+                        {mapLayerType === "satellite" ? (
+                          <>
+                            <TileLayer
+                              attribution='Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics'
+                              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                              crossOrigin="anonymous"
+                            />
+                            <TileLayer
+                              attribution='Labels &copy; Esri'
+                              url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+                              crossOrigin="anonymous"
+                            />
+                          </>
+                        ) : (
+                          <TileLayer
+                            attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                            url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                            crossOrigin="anonymous"
+                          />
+                        )}
                         <MapController
                           center={mapCenter}
                           filteredDataForCards={filteredDataForCards}
@@ -1803,66 +2064,47 @@ function App() {
                           onMapReady={handleMapReady}
                           isAllCities={isAllSelected}
                         />
-                        {(selectedRow ? [selectedRow] : filteredDataForCards)
-                          .filter((row) => row["_Record_the_location_of_GVP_latitude"] && row["_Record_the_location_of_GVP_longitude"])
-                          .map((row, idx) => {
-                            const lat = Number(row["_Record_the_location_of_GVP_latitude"]);
-                            const lng = Number(row["_Record_the_location_of_GVP_longitude"]);
-                            const ward = row["GVP Ward"] || "";
-                            const stableKey = `${ward}-${lat}-${lng}-${idx}`;
-
-                            const colorName = WARD_COLOR_MAP[ward] || "blue";
-
-                            const customIcon = new L.Icon({
-                              iconRetinaUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${colorName}.png`,
-                              iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-${colorName}.png`,
-                              shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
-                              iconSize: [25, 41],
-                              iconAnchor: [12, 41],
-                              popupAnchor: [1, -34],
-                              shadowSize: [41, 41],
-                            });
-
-                            return (
-                              <Marker
-                                key={stableKey}
-                                position={[lat, lng]}
-                                icon={customIcon}
-                                eventHandlers={{
-                                  click: () => handleMarkerClick(row),
-                                }}
-                              >
-                                <LeafletTooltip
-                                  direction="auto"
-                                  offset={[0, -20]}
-                                  opacity={1}
-                                  sticky={true}
-                                  permanent={false}
-                                  interactive={true}
-                                  className="rounded shadow-lg p-0 custom-tooltip"
-                                >
-                                  <div
-                                    style={{
-                                      maxWidth: 480,
-                                      minWidth: 400,
-                                      overflow: "visible",
-                                      whiteSpace: "normal",
-                                      padding: 10,
-                                      background: "white",
-                                      borderRadius: 10,
-                                      boxShadow: "0 8px 22px rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.08)",
-                                    }}
-                                  >
-                                    <div style={{ marginBottom: 6, fontWeight: 700 }}>
-                                      Garbage Point Info
-                                    </div>
-                                    <TooltipContent row={row} />
-                                  </div>
-                                </LeafletTooltip>
-                              </Marker>
-                            );
-                          })}
+                        <ClusteredMarkers
+                          rows={(selectedRow ? [selectedRow] : filteredDataForCards).filter(
+                            (row) => row["_Record_the_location_of_GVP_latitude"] && row["_Record_the_location_of_GVP_longitude"]
+                          )}
+                          selectedRowStart={selectedRowStart}
+                          onMarkerClick={handleMarkerClick}
+                        />
                       </MapContainer>
+
+                      {/* Street / Satellite Toggle */}
+                      <div className="absolute top-3 right-3 z-[1000] bg-white/90 backdrop-blur rounded-xl shadow-lg border border-gray-100 p-1 flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setMapLayerType("street")}
+                          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${
+                            mapLayerType === "street"
+                              ? "bg-indigo-600 text-white shadow"
+                              : "text-gray-600 hover:bg-gray-100"
+                          }`}
+                        >
+                          Street
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMapLayerType("satellite")}
+                          className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${
+                            mapLayerType === "satellite"
+                              ? "bg-indigo-600 text-white shadow"
+                              : "text-gray-600 hover:bg-gray-100"
+                          }`}
+                        >
+                          Satellite
+                        </button>
+                      </div>
+
+                      {/* Mini Legend */}
+                      <div className="absolute bottom-3 right-3 z-[1000] bg-white/90 backdrop-blur rounded-xl shadow-lg border border-gray-100 px-3 py-2 text-xs space-y-1">
+                        <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" /> High waste</div>
+                        <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block" /> Medium waste</div>
+                        <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" /> Low waste</div>
+                      </div>
                     </div>
 
                   </>
@@ -1874,25 +2116,30 @@ function App() {
             </div>
             {isDashboardCity ? (
               <>
-                <div className="flex justify-center items-center gap-2 mt-8">
-                  <h2 className="text-2xl font-bold text-black cursor-pointer" onClick={() => setIsKeyFindingsOpen(!isKeyFindingsOpen)}>
+                <div className="mt-8 bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-shadow duration-300">
+                <div
+                  className="flex justify-center items-center gap-2 cursor-pointer group"
+                  onClick={() => setIsKeyFindingsOpen(!isKeyFindingsOpen)}
+                >
+                  <h2 className="text-2xl font-bold text-black">
                     Key Findings from the GVP Survey
                   </h2>
-                  <span className="pointer-events-none">
-                    {isKeyFindingsOpen ? '▲' : '▼'}
-                  </span>
+                  <span className="pointer-events-none">{isKeyFindingsOpen ? "▲" : "▼"}</span>
                 </div>
 
-                {isKeyFindingsOpen && <div className="w-full space-y-6 mt-6">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="bg-white rounded-lg shadow p-3 w-full">
-                      <h3 className="text-center text-sm sm:text-base font-semibold mb-2">
+                {/* Key Findings Accordion — expands inline on the same vertical
+                    page when the arrow above is clicked. No popups/modals. */}
+                {isKeyFindingsOpen && (
+                  <div ref={analyticsCaptureRef} className="w-full space-y-6 mt-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 w-full hover:shadow-xl transition-shadow duration-300">
+                      <h3 className="text-center text-sm sm:text-base font-semibold mb-2 text-gray-700">
                         Breakdown by Waste Type
                       </h3>
 
-                      <div className="w-full h-72 sm:h-64 md:h-72 lg:h-80">
-                        <ResponsiveContainer width="100%" height={300}>
-                          <PieChart>
+                      <div className="w-full h-80 sm:h-72 md:h-80 lg:h-96">
+                        <ResponsiveContainer width="100%" height={340}>
+                          <PieChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                             <Pie
                               data={pieData}
                               dataKey="value"
@@ -1901,10 +2148,13 @@ function App() {
                               cy="50%"
                               outerRadius={isSmallScreen ? 60 : 90}
                               innerRadius={isSmallScreen ? 30 : 60}
-                              paddingAngle={2}
+                              paddingAngle={3}
                               label={renderCustomizedLabel(isSmallScreen)}
                               labelLine={true}
                               minAngle={5}
+                              stroke="#ffffff"
+                              strokeWidth={2}
+                              isAnimationActive={!isCapturingScreenshot}
                             >
                               {pieData.map((entry, index) => (
                                 <Cell
@@ -1913,13 +2163,23 @@ function App() {
                                 />
                               ))}
                             </Pie>
-                            <Tooltip />
+                            <Tooltip
+                              contentStyle={TOOLTIP_CONTENT_STYLE}
+                              labelStyle={TOOLTIP_LABEL_STYLE}
+                              itemStyle={TOOLTIP_ITEM_STYLE}
+                              formatter={(value, name) => [`${value} (${pieData.length ? ((value / pieData.reduce((s, d) => s + d.value, 0)) * 100).toFixed(1) : 0}%)`, name]}
+                            />
+                            <Legend
+                              verticalAlign="bottom"
+                              iconType="circle"
+                              wrapperStyle={{ fontSize: isSmallScreen ? 10 : 12, paddingTop: 8 }}
+                            />
                           </PieChart>
                         </ResponsiveContainer>
                       </div>
                     </div>
 
-                    <div className="bg-white p-4 rounded-lg shadow-lg border border-gray-200 ">
+                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 hover:shadow-xl transition-shadow duration-300">
                       <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
                         Reasons for Waste Accumulation
                       </h2>
@@ -1934,9 +2194,19 @@ function App() {
                               width={isSmallScreen ? 120 : 180}
                               tick={{ fontSize: isSmallScreen ? 11 : 14 }}
                             />
-                            <Tooltip formatter={(value) => `${value.toFixed(1)}%`} />
+                            <Tooltip
+                              formatter={(value) => `${value.toFixed(1)}%`}
+                              contentStyle={TOOLTIP_CONTENT_STYLE}
+                              labelStyle={TOOLTIP_LABEL_STYLE}
+                              itemStyle={TOOLTIP_ITEM_STYLE}
+                              cursor={TOOLTIP_CURSOR_STYLE}
+                            />
                             <Bar dataKey="value" barSize={isSmallScreen ? 14 : 22}
-                              label={renderCustomBarLabel}>
+                              label={renderCustomBarLabel}
+                                radius={[0, 6, 6, 0]}
+                                activeBar={{ fillOpacity: 0.85 }}
+                                isAnimationActive={!isCapturingScreenshot}
+                              >
                               {reasonsData.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
                               ))}
@@ -1951,7 +2221,7 @@ function App() {
 
                     <div className="space-y-6">
                       {/* Problems */}
-                      <div className="bg-white px-6 py-5 rounded-lg shadow-lg border border-gray-200 overflow-x-auto">
+                      <div className="bg-white px-6 py-5 rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300 overflow-x-auto">
                         <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
                           Top Problems Faced by Residents around GVP
                         </h2>
@@ -1980,11 +2250,20 @@ function App() {
                                   value.length > 18 ? value.slice(0, 18) + "…" : value
                                 }
                               />
-                              <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
+                              <Tooltip
+                                formatter={(v) => `${v.toFixed(1)}%`}
+                                contentStyle={TOOLTIP_CONTENT_STYLE}
+                                labelStyle={TOOLTIP_LABEL_STYLE}
+                                itemStyle={TOOLTIP_ITEM_STYLE}
+                                cursor={TOOLTIP_CURSOR_STYLE}
+                              />
                               <Bar
                                 dataKey="value"
                                 barSize={isSmallScreen ? 14 : 22}
                                 label={renderCustomBarLabel}
+                                radius={[0, 6, 6, 0]}
+                                activeBar={{ fillOpacity: 0.85 }}
+                                isAnimationActive={!isCapturingScreenshot}
                               >
                                 {problemsData.map((_, i) => (
                                   <Cell
@@ -1999,7 +2278,7 @@ function App() {
                       </div>
 
                       {/* Settings */}
-                      <div className="bg-white px-6 py-5 rounded-lg shadow-lg border border-gray-200 overflow-x-auto">
+                      <div className="bg-white px-6 py-5 rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300 overflow-x-auto">
                         <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
                           Top Settings Where GVPs Are Found
                         </h2>
@@ -2026,11 +2305,20 @@ function App() {
                                 width={isSmallScreen ? 90 : 160}
                                 tick={{ fontSize: isSmallScreen ? 10 : 14 }}
                               />
-                              <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
+                              <Tooltip
+                                formatter={(v) => `${v.toFixed(1)}%`}
+                                contentStyle={TOOLTIP_CONTENT_STYLE}
+                                labelStyle={TOOLTIP_LABEL_STYLE}
+                                itemStyle={TOOLTIP_ITEM_STYLE}
+                                cursor={TOOLTIP_CURSOR_STYLE}
+                              />
                               <Bar
                                 dataKey="value"
                                 barSize={isSmallScreen ? 14 : 22}
                                 label={renderCustomBarLabel}
+                                radius={[0, 6, 6, 0]}
+                                activeBar={{ fillOpacity: 0.85 }}
+                                isAnimationActive={!isCapturingScreenshot}
                               >
                                 {settingData.map((_, i) => (
                                   <Cell
@@ -2047,7 +2335,7 @@ function App() {
 
                     <div className="space-y-6">
                       {/* Who Dispose */}
-                      <div className="bg-white px-6 py-5 rounded-lg shadow-lg border border-gray-200 overflow-x-auto">
+                      <div className="bg-white px-6 py-5 rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300 overflow-x-auto">
                         <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
                           Who is Disposing the most Waste (as per Citizens)
                         </h2>
@@ -2074,11 +2362,20 @@ function App() {
                                 width={isSmallScreen ? 90 : 160}
                                 tick={{ fontSize: isSmallScreen ? 10 : 14 }}
                               />
-                              <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
+                              <Tooltip
+                                formatter={(v) => `${v.toFixed(1)}%`}
+                                contentStyle={TOOLTIP_CONTENT_STYLE}
+                                labelStyle={TOOLTIP_LABEL_STYLE}
+                                itemStyle={TOOLTIP_ITEM_STYLE}
+                                cursor={TOOLTIP_CURSOR_STYLE}
+                              />
                               <Bar
                                 dataKey="value"
                                 barSize={isSmallScreen ? 14 : 22}
                                 label={renderCustomBarLabel}
+                                radius={[0, 6, 6, 0]}
+                                activeBar={{ fillOpacity: 0.85 }}
+                                isAnimationActive={!isCapturingScreenshot}
                               >
                                 {whoDisposeData.map((_, i) => (
                                   <Cell
@@ -2093,7 +2390,7 @@ function App() {
                       </div>
 
                       {/* Solutions Chart (swapped with Reasons) */}
-                      <div className="bg-white px-6 py-5 rounded-lg shadow-lg border border-gray-200 overflow-x-auto">
+                      <div className="bg-white px-6 py-5 rounded-2xl shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300 overflow-x-auto">
                         <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
                           Top Solutions Suggested (by Citizens)
                         </h2>
@@ -2121,11 +2418,20 @@ function App() {
                                 width={isSmallScreen ? 90 : 160}
                                 tick={{ fontSize: isSmallScreen ? 10 : 14 }}
                               />
-                              <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
+                              <Tooltip
+                                formatter={(v) => `${v.toFixed(1)}%`}
+                                contentStyle={TOOLTIP_CONTENT_STYLE}
+                                labelStyle={TOOLTIP_LABEL_STYLE}
+                                itemStyle={TOOLTIP_ITEM_STYLE}
+                                cursor={TOOLTIP_CURSOR_STYLE}
+                              />
                               <Bar
                                 dataKey="value"
                                 barSize={isSmallScreen ? 14 : 22}
                                 label={renderCustomBarLabel}
+                                radius={[0, 6, 6, 0]}
+                                activeBar={{ fillOpacity: 0.85 }}
+                                isAnimationActive={!isCapturingScreenshot}
                               >
                                 {solutionData.map((_, i) => (
                                   <Cell
@@ -2141,20 +2447,21 @@ function App() {
                     </div>
 
                   </div>
+                </div>
+                )}
+                </div>
 
-                  {/* Footer */}
-                  <footer className="mt-12 pb-4 text-center">
-                    <a
-                      href="https://themetropolitaninstitute.com/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xl font-bold text-gray-600 hover:text-blue-400 transition duration-300"
-                    >
-                      Developed by The Metropolitan Institute
-                    </a>
-                  </footer>
-
-                </div>}
+                {/* Footer — always visible, independent of the popup */}
+                <footer className="mt-8 pb-4 flex justify-center">
+                  <a
+                    href="https://themetropolitaninstitute.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-700 to-teal-800 text-white text-lg font-bold shadow-lg hover:shadow-xl hover:from-emerald-600 hover:to-teal-700 transition-all duration-300"
+                  >
+                    Developed by The Metropolitan Institute
+                  </a>
+                </footer>
               </>
             ) : (
               <div className="hidden lg:block w-full h-full">
